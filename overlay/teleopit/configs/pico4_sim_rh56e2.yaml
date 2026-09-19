@@ -32,3 +32,8 @@ hydra:
 sim_hands:
   enabled: true
   config: third_party/somehand/configs/retargeting/bihand/inspire_rh56e2_bihand.yaml
+
+console:
+  log_level: info
+  show_timing: false
+  timing_log_interval_s: 10.0
