@@ -1,0 +1,19 @@
+{
+  "project": "teleopit-rh56e2-repro",
+  "upstream": {
+    "teleopit": {
+      "repository": "https://github.com/BotRunner64/Teleopit.git",
+      "commit": "f926386"
+    },
+    "somehand": {
+      "repository": "https://github.com/BotRunner64/somehand.git",
+      "commit": "f0a6b42e151ca10a6eec3e24c24c10cd13c40314"
+    }
+  },
+  "features": [
+    "parallel RH56E2 left/right simulation",
+    "PICO hand tracking through somehand",
+    "non-invasive Teleopit overlay",
+    "collision-disabled and damped hand model"
+  ]
+}
