@@ -46,12 +46,17 @@ class TeleopPipelineRh56e2:
             config=parse_pico_video_config(input_cfg),
             robot=self.robot,
         )
+        # build_inference_components intentionally returns a reduced
+        # simulation config. Preserve RH56E2-specific top-level settings when
+        # constructing the parallel simulation loop.
+        sim_cfg = dict(components.sim_cfg)
+        sim_cfg["sim_hands"] = cfg_get(cfg, "sim_hands", {}) or {}
         self.loop = SimulationLoopRh56e2(
             cast(Any, self.robot),
             cast(Any, self.controller),
             cast(Any, self.obs_builder),
             cast(Any, self.bus),
-            components.sim_cfg,
+            sim_cfg,
             viewers=components.viewers,
             video_runtime=self.video_runtime,
             console=console,
