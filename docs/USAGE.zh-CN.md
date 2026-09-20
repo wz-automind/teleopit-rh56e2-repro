@@ -91,7 +91,7 @@ TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/validate.sh
 
 ### 8.1 仿真内容与边界
 
-这里运行的是 **MuJoCo sim2sim**，不是 RH56E2 真机控制。场景使用 `teleopit/configs/pico4_sim_rh56e2.yaml`，包含 G1 29 自由度本体和左右 RH56E2 共 12 个手部执行器。PICO 身体数据进入 Teleopit 策略控制 G1，左右手跟踪经 somehand 重定向后只驱动仿真手。此命令不会连接 G1、不会打开 RH56E2 Modbus socket，也不会写真机寄存器。
+这里场景使用 `teleopit/configs/pico4_sim_rh56e2.yaml`，包含 G1 29 自由度本体和左右 RH56E2 共 12 个手部执行器。PICO 身体数据进入 Teleopit 策略控制 G1，左右手跟踪经 somehand 重定向后只驱动仿真手。
 
 默认配置需要 PICO 4 Ultra 提供实时身体和手部跟踪。没有 PICO 时仍可执行第 7 节的离线安装、模型加载与 1000 步稳定性验证，但本节的实时遥操作会等待 PICO 数据，不能当作无输入自动演示。默认监听 `0.0.0.0:63901`，等待第一帧的超时时间为 60 秒。
 
