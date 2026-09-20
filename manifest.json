@@ -1,19 +1,54 @@
 {
   "project": "teleopit-rh56e2-repro",
+  "schema_version": 2,
+  "verified_on": "2026-09-20",
   "upstream": {
     "teleopit": {
       "repository": "https://github.com/BotRunner64/Teleopit.git",
-      "commit": "f926386"
+      "commit": "f9263865c581802ad531854b8e547e2403a945f3",
+      "release": "v0.5.0"
     },
     "somehand": {
       "repository": "https://github.com/BotRunner64/somehand.git",
-      "commit": "f0a6b42e151ca10a6eec3e24c24c10cd13c40314"
+      "commit": "f0a6b42e151ca10a6eec3e24c24c10cd13c40314",
+      "release": "0.3.0"
+    },
+    "pico_bridge": {
+      "repository": "https://github.com/BotRunner64/pico-bridge.git",
+      "release": "v0.2.1",
+      "apk": "PicoBridge_v0.2.1_20260522_release.apk",
+      "apk_sha256": "ab96ad856ca737999723d4e50f8e5d4b20c5570f7f74000d5799dc656cc2c0d5",
+      "wheel_sha256": "7cf0fee07c76541fd06e2ee6bdeec3d11fec578cd4ef6b45179dec4af31b369f"
+    },
+    "xr_teleoperate_reference": {
+      "repository": "https://github.com/unitreerobotics/xr_teleoperate.git",
+      "commit": "817fb00c63cde15e5f24a0f8fa08e1e33ed89d3b",
+      "purpose": "Inspire six-DOF order and radians-to-normalized mapping reference"
     }
   },
+  "hardware_reference": {
+    "document": "PRJ-02-TS-U-011",
+    "model": "RH56E2 series",
+    "version": "V1.0.1",
+    "protocol": "Modbus TCP",
+    "default_ip": "192.168.11.210",
+    "default_port": 6000,
+    "supply_voltage_v": 24,
+    "max_grasp_current_a_per_hand": 4.5
+  },
+  "safety": {
+    "hardware_writes_default": false,
+    "preflight_is_read_only": true,
+    "duplicate_dual_hand_endpoint_rejected": true,
+    "fault_and_temperature_gate": true,
+    "stale_tracking_action": "write -1 hold values when writes are enabled"
+  },
   "features": [
-    "parallel RH56E2 left/right simulation",
+    "parallel RH56E2 left/right MuJoCo simulation",
     "PICO hand tracking through somehand",
-    "non-invasive Teleopit overlay",
-    "collision-disabled and damped hand model"
+    "stdlib-only guarded RH56E2 Modbus TCP driver",
+    "read-only hardware preflight",
+    "pinned installation and asset retrieval",
+    "source-level CI protocol tests"
   ]
 }
