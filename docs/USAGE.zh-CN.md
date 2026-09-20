@@ -89,13 +89,70 @@ TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/validate.sh
 
 ## 8. 运行仿真
 
+### 8.1 仿真内容与边界
+
+这里运行的是 **MuJoCo sim2sim**，不是 RH56E2 真机控制。场景使用 `teleopit/configs/pico4_sim_rh56e2.yaml`，包含 G1 29 自由度本体和左右 RH56E2 共 12 个手部执行器。PICO 身体数据进入 Teleopit 策略控制 G1，左右手跟踪经 somehand 重定向后只驱动仿真手。此命令不会连接 G1、不会打开 RH56E2 Modbus socket，也不会写真机寄存器。
+
+默认配置需要 PICO 4 Ultra 提供实时身体和手部跟踪。没有 PICO 时仍可执行第 7 节的离线安装、模型加载与 1000 步稳定性验证，但本节的实时遥操作会等待 PICO 数据，不能当作无输入自动演示。默认监听 `0.0.0.0:63901`，等待第一帧的超时时间为 60 秒。
+
+### 8.2 启动前检查
+
+1. 在 PICO 上打开 pico-bridge，填写控制主机在同一局域网中的 IP。
+2. 确认主机防火墙允许 UDP/TCP 端口 `63901`（协议以 pico-bridge 当前版本为准），并确保该端口未被其它进程占用。
+3. 确认策略文件存在：
+
+```bash
+test -f "$TELEOPIT_DIR/ckpt/track_g1.onnx" && echo "policy OK"
+```
+
+4. 再次做无硬件写入的完整检查：
+
+```bash
+cd "$REPRO_DIR"
+TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/validate.sh
+```
+
+### 8.3 启动实时 PICO 仿真
+
 ```bash
 cd "$TELEOPIT_DIR"
 .venv/bin/python scripts/run/run_sim_rh56e2.py \
   controller.policy_path=ckpt/track_g1.onnx
 ```
 
-先观察静止模型和关节方向，再连接 PICO。检查左右手没有互换、拇指旋转方向正确、跟踪暂停时姿态不会跳变。按 `Ctrl+C` 退出。若窗口打不开，先检查图形驱动和 `DISPLAY`/Wayland 设置。
+终端应显示 `State: STANDING`、`Input: Pico4 live`、`Viewers: all` 和 `Hands: RH56E2`。收到 PICO 首帧后，按以下顺序操作：
+
+| 键 | 作用 | 验证内容 |
+|---|---|---|
+| `Y` | 从 `STANDING` 进入全身 `MOCAP` | G1 和双手开始跟随 PICO |
+| `B` | 在全身与仅手臂模式之间切换 | 确认模式切换不会造成姿态突跳 |
+| `A` | 暂停/恢复跟踪 | 暂停时仿真保持最后目标 |
+| `X` | 返回 `STANDING` | 模型回到站立控制状态 |
+| `Q` | 正常退出 | 关闭查看器并结束进程 |
+
+`Ctrl+C` 可作为终端退出的备用方式。键盘输入需要终端窗口具有焦点。
+
+### 8.4 仿真验收标准
+
+逐项确认后再考虑真机：
+
+- MuJoCo 窗口能打开，G1 在 `STANDING` 中保持稳定，没有持续下沉、爆炸或高频抖动。
+- `Y` 后身体方向与操作者一致；左右手没有互换。
+- 两只手各 6 个执行器有响应，拇指旋转和四指屈伸方向正确，关节不穿模或卡在极限。
+- `A` 暂停时姿态保持，恢复时没有明显跳变；`X` 能可靠返回 `STANDING`。
+- 终端没有持续出现丢帧、超时、NaN、策略维度或模型资源错误。
+
+配置中的 `policy_hz: 50` 和 `pd_hz: 200` 分别是策略与仿真 PD 更新频率，不代表 PICO 到画面的端到端延迟。
+
+### 8.5 仿真常见问题
+
+| 现象 | 处理 |
+|---|---|
+| 一直显示等待 PICO | 检查 PICO 中填写的主机 IP、同一局域网、防火墙和 `63901` 端口；在 60 秒超时前重新启动 PICO 应用 |
+| `Y` 后仍不进入 `MOCAP` | PICO 尚未提供有效身体/手部帧；先恢复跟踪，再观察终端是否收到首帧 |
+| 窗口打不开 | 检查显卡驱动、OpenGL、`DISPLAY`/Wayland；SSH 环境需要正确的图形转发或本地桌面 |
+| 找不到策略或模型 | 回到第 5 节重跑安装（不要使用 `--skip-assets`），然后执行 `scripts/validate.sh` |
+| 左右手或关节方向不对 | 停留在仿真，记录具体手和自由度；不要继续第 9 节以后的真机流程 |
 
 ## 9. 安装真机组件
 
@@ -251,3 +308,4 @@ ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HA
 ```
 
 协议、寄存器、模型映射和仍待完成的物理验收见 [真机控制检查](真机控制检查.md)。
+
