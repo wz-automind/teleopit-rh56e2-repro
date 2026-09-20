@@ -4,6 +4,8 @@
 
 结论先说清楚：**只执行 `git clone` 还不能直接运行**，因为 Teleopit 本体、Python 环境、策略权重和 PICO 应用不在这个仓库里。执行安装脚本后，仿真链路可以按固定版本复现；真机链路还必须完成网络、电气和空载验收，默认不会向手发送任何运动指令。
 
+完整使用文档：[中文使用手册](docs/USAGE.zh-CN.md) | [English Usage Guide](docs/USAGE.en.md)
+
 ## 能力边界
 
 | 能力 | 状态 | 说明 |
@@ -65,11 +67,12 @@ overlay/teleopit/sim2real/hands/      Modbus TCP 驱动与 Teleopit hand worker 
 overlay/third_party/somehand/          RH56E2 左右手模型和重定向配置
 scripts/install.sh                     固定版本、环境、资源和可选 G1 bridge 安装
 scripts/rh56e2_preflight.py            默认只读的环境/真机预检
+scripts/rh56e2_bench_test.py           双重确认、单自由度的低速工作台测试
 scripts/run_real.sh                    需要双重确认的真机入口
 tests/test_rh56e2.py                   协议和映射测试
 ```
 
-详细步骤见 [安装与运行](docs/安装与运行.md)。版本和资源哈希见 [manifest.json](manifest.json)。
+快速安装说明见 [安装与运行](docs/安装与运行.md)，从虚拟环境到真机验收的完整流程见上方中英文手册。版本和资源哈希见 [manifest.json](manifest.json)。
 
 ## 重要限制
 
