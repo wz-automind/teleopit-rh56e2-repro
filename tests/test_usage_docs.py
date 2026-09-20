@@ -24,9 +24,30 @@ class UsageGuideTests(unittest.TestCase):
             "scripts/rh56e2_bench_test.py",
             "scripts/run/standalone_standing.py",
             "scripts/run_real.sh",
+            "teleopit/configs/pico4_sim_rh56e2.yaml",
             "MOVE_RH56E2",
             "ENABLE_G1_REAL=YES",
             "ENABLE_RH56E2_WRITES=YES",
+        )
+        for path in DOCS:
+            text = path.read_text(encoding="utf-8")
+            for fragment in required:
+                with self.subTest(path=path.name, fragment=fragment):
+                    self.assertIn(fragment, text)
+
+    def test_both_guides_document_live_simulation_operation(self):
+        required = (
+            "scripts/run/run_sim_rh56e2.py",
+            "63901",
+            "`STANDING`",
+            "`MOCAP`",
+            "`Y`",
+            "`B`",
+            "`A`",
+            "`X`",
+            "`Q`",
+            "policy_hz: 50",
+            "pd_hz: 200",
         )
         for path in DOCS:
             text = path.read_text(encoding="utf-8")
@@ -42,3 +63,4 @@ class UsageGuideTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
