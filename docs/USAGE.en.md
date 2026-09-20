@@ -89,13 +89,70 @@ The checks must report success, pinned revisions, and all required assets. This 
 
 ## 8. Run simulation
 
+### 8.1 What the simulation contains and does not contain
+
+This is **MuJoCo sim2sim**, not RH56E2 hardware control. The scene uses `teleopit/configs/pico4_sim_rh56e2.yaml` and contains the 29-DOF G1 body plus 12 actuators across the left and right RH56E2 hands. PICO body tracking feeds the Teleopit policy for G1, while left/right hand tracking is retargeted by somehand and drives only the simulated hands. This command does not connect to a G1, open an RH56E2 Modbus socket, or write hardware registers.
+
+The default configuration requires a PICO 4 Ultra for live body and hand tracking. Without a PICO, Section 7 can still validate installation, load the model, and run the 1,000-step stability check, but this live teleoperation entry point waits for PICO data and is not an input-free automatic demo. It listens on `0.0.0.0:63901` by default and waits 60 seconds for the first frame.
+
+### 8.2 Pre-launch checks
+
+1. Open pico-bridge on the PICO and enter the control host IP on the same LAN.
+2. Allow port `63901` through the host firewall for the transport used by the installed pico-bridge version, and ensure no other process owns the port.
+3. Confirm that the policy exists:
+
+```bash
+test -f "$TELEOPIT_DIR/ckpt/track_g1.onnx" && echo "policy OK"
+```
+
+4. Repeat the full no-hardware-write validation:
+
+```bash
+cd "$REPRO_DIR"
+TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/validate.sh
+```
+
+### 8.3 Start live PICO simulation
+
 ```bash
 cd "$TELEOPIT_DIR"
 .venv/bin/python scripts/run/run_sim_rh56e2.py \
   controller.policy_path=ckpt/track_g1.onnx
 ```
 
-Inspect the stationary model and joint directions before connecting the PICO. Verify that left/right hands are not swapped, thumb rotation is correct, and pausing tracking does not produce a pose jump. Stop with `Ctrl+C`. If the window does not open, check the graphics driver and `DISPLAY`/Wayland configuration.
+The terminal should show `State: STANDING`, `Input: Pico4 live`, `Viewers: all`, and `Hands: RH56E2`. After the first PICO frame arrives, use this sequence:
+
+| Key | Action | What to verify |
+|---|---|---|
+| `Y` | Enter full-body `MOCAP` from `STANDING` | G1 and both hands start following PICO |
+| `B` | Toggle full-body versus arms-only mode | Mode changes do not cause a pose jump |
+| `A` | Pause/resume tracking | The simulation holds the last target while paused |
+| `X` | Return to `STANDING` | The model returns to standing control |
+| `Q` | Exit normally | Viewers close and the process ends |
+
+`Ctrl+C` is a fallback terminal exit. The terminal window must have focus for keyboard controls.
+
+### 8.4 Simulation acceptance criteria
+
+Verify every item before considering hardware:
+
+- The MuJoCo window opens and G1 remains stable in `STANDING`, without continuous sinking, divergence, or high-frequency oscillation.
+- After `Y`, body directions match the operator and left/right hands are not swapped.
+- All six actuators per hand respond; thumb rotation and finger flexion directions are correct, without model penetration or joints stuck at limits.
+- `A` holds the pose and resumes without an obvious jump; `X` reliably returns to `STANDING`.
+- The terminal does not continuously report dropped frames, timeouts, NaNs, policy-dimension errors, or missing model assets.
+
+The configured `policy_hz: 50` and `pd_hz: 200` are policy and simulation-PD update rates, not PICO-to-display end-to-end latency.
+
+### 8.5 Simulation troubleshooting
+
+| Symptom | Action |
+|---|---|
+| Continues waiting for PICO | Check the host IP entered in PICO, LAN membership, firewall, and port `63901`; restart the PICO app before the 60-second timeout |
+| `Y` does not enter `MOCAP` | PICO has not supplied a valid body/hand frame; restore tracking and confirm that the terminal receives the first frame |
+| Viewer does not open | Check the GPU driver, OpenGL, and `DISPLAY`/Wayland; SSH requires working graphics forwarding or a local desktop |
+| Policy or model is missing | Repeat the Section 5 install without `--skip-assets`, then run `scripts/validate.sh` |
+| Left/right hand or joint direction is wrong | Stay in simulation, record the exact hand and DOF, and do not continue to the hardware steps after Section 8 |
 
 ## 9. Install hardware components
 
@@ -251,3 +308,4 @@ ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HA
 ```
 
 See [Hardware Control Review](真机控制检查.md) for protocol details, register mappings, model mappings, and outstanding physical acceptance work.
+
