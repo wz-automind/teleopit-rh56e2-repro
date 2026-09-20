@@ -1,64 +1,79 @@
-# Teleopit + RH56E2 双手仿真复现项目
+# Teleopit + RH56E2 开箱复现与真机接入
 
-这个仓库保存一套可复现的实验覆盖层，用于在 Teleopit 的 Unitree G1 MuJoCo 仿真中加入左右两只 Inspire RH56E2 手。
+这个仓库把 [Teleopit](https://github.com/BotRunner64/Teleopit)、[somehand](https://github.com/BotRunner64/somehand) 和 [pico-bridge](https://github.com/BotRunner64/pico-bridge/blob/main/docs/zh/README.md) 固定到可复现版本，并加入 Inspire RH56E2 双手模型、PICO 手部重定向和受保护的 Modbus TCP 真机驱动。
 
-控制链路：
+结论先说清楚：**只执行 `git clone` 还不能直接运行**，因为 Teleopit 本体、Python 环境、策略权重和 PICO 应用不在这个仓库里。执行安装脚本后，仿真链路可以按固定版本复现；真机链路还必须完成网络、电气和空载验收，默认不会向手发送任何运动指令。
+
+## 能力边界
+
+| 能力 | 状态 | 说明 |
+|---|---|---|
+| G1 + RH56E2 MuJoCo 双手仿真 | 已实现 | PICO 身体跟踪驱动 G1，PICO 手跟踪经 somehand 驱动 12 个手部执行器 |
+| RH56E2 Modbus TCP 只读预检 | 已实现 | 读取角度、力、电流、故障、状态和温度，不写寄存器 |
+| RH56E2 实时控制 | 代码已实现，待真机验收 | 必须显式设置 `write_enabled=true`；故障、过温或跟踪超时会阻止/停止跟随 |
+| G1 全身真机控制 | 复用 Teleopit 官方路径，待真机验收 | 使用 `g1_bridge_sdk`、Teleopit 状态机和安全检查 |
+
+## 快速开始：仿真
+
+推荐 Ubuntu/Linux，Python 3.10 或 3.11：
+
+```bash
+git clone https://github.com/wz-automind/teleopit-rh56e2-repro.git
+cd teleopit-rh56e2-repro
+bash scripts/install.sh --profile sim --download-pico-apk
+TELEOPIT_DIR="$HOME/Teleopit" bash scripts/validate.sh
+```
+
+安装脚本会创建 `$HOME/Teleopit/.venv`、检出固定 commit、安装 pico-bridge 和 somehand，并下载 `track_g1.onnx` 等官方资源。安装 PICO APK、按 pico-bridge 文档配置同一局域网后运行：
+
+```bash
+cd "$HOME/Teleopit"
+.venv/bin/python scripts/run/run_sim_rh56e2.py \
+  controller.policy_path=ckpt/track_g1.onnx
+```
+
+## 真机接入
+
+先安装真实 G1 桥接层：
+
+```bash
+bash scripts/install.sh --profile real
+```
+
+先做只读检查；该命令不会发送 Modbus 写请求：
+
+```bash
+$HOME/Teleopit/.venv/bin/python scripts/rh56e2_preflight.py \
+  --teleopit-dir "$HOME/Teleopit" --profile real --hardware \
+  --left-host 192.168.11.210 --right-host 192.168.11.211
+```
+
+只有完成 [真机控制检查](docs/真机控制检查.md) 的分阶段验收后，才可显式启动：
+
+```bash
+ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
+LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 \
+NETWORK_INTERFACE=eth0 \
+bash scripts/run_real.sh
+```
+
+## 关键目录
 
 ```text
-PICO 4 身体跟踪  -> Teleopit -> G1 29DoF policy
-PICO 4 双手跟踪  -> somehand -> RH56E2 左右手 actuator
+overlay/teleopit/sim/                 RH56E2 MuJoCo 双手仿真
+overlay/teleopit/sim2real/hands/      Modbus TCP 驱动与 Teleopit hand worker 注册
+overlay/third_party/somehand/          RH56E2 左右手模型和重定向配置
+scripts/install.sh                     固定版本、环境、资源和可选 G1 bridge 安装
+scripts/rh56e2_preflight.py            默认只读的环境/真机预检
+scripts/run_real.sh                    需要双重确认的真机入口
+tests/test_rh56e2.py                   协议和映射测试
 ```
 
-原版 Teleopit 入口不会被修改。安装脚本只向上游工作树增加 RH56E2 专用文件，因此可以同时运行原版和本项目版本。
+详细步骤见 [安装与运行](docs/安装与运行.md)。版本和资源哈希见 [manifest.json](manifest.json)。
 
-## 固定版本
+## 重要限制
 
-- Teleopit：`BotRunner64/Teleopit`，commit `f926386`
-- somehand：`BotRunner64/somehand`，commit `f0a6b42e151ca10a6eec3e24c24c10cd13c40314`
-- 本项目基于 Teleopit 官方仓库、项目文档和本地 RH56E2 改动整理而成。
-
-上游项目：[Teleopit](https://github.com/BotRunner64/Teleopit)
-
-## 安装
-
-```bash
-cd ~/teleopit-rh56e2-repro
-TELEOPIT_DIR=~/Teleopit \
-SOMEHAND_DIR=~/Teleopit/third_party/somehand \
-bash scripts/install.sh
-```
-
-如果两个上游目录不存在，脚本会从 GitHub 克隆并切换到固定 commit。安装不会覆盖原版 `run_sim.py`、`mujoco_robot.py`、`session.py` 或 `pico4_sim.yaml`。
-
-## 验证
-
-```bash
-cd ~/teleopit-rh56e2-repro
-TELEOPIT_DIR=~/Teleopit \
-SOMEHAND_DIR=~/Teleopit/third_party/somehand \
-bash scripts/validate.sh
-```
-
-验证包括：RH56E2 配置加载、合并模型的 `nq/nv/nu`、41 个 actuator、首步无手部碰撞，以及 1000 步无 MuJoCo 数值警告。
-
-## 运行双手仿真
-
-```bash
-cd ~/Teleopit
-PYTHONPATH=third_party/somehand/src:$PYTHONPATH \
-python scripts/run/run_sim_rh56e2.py \
-  controller.policy_path=ckpt/track_g1.onnx
-```
-
-原版仍使用原命令：
-
-```bash
-python scripts/run/run_sim.py \
-  --config-name pico4_sim \
-  controller.policy_path=ckpt/track_g1.onnx
-```
-
-## 目录说明
-
-`overlay/` 是复制到 Teleopit 和 somehand 工作树中的新增文件；`scripts/merge_g1_rh56e2.py` 的碰撞和阻尼修复已经反映在随附的合并 XML 中。RH56E2 手部碰撞被关闭，仅保留可视化和关节控制，避免手部碰撞体与 G1 原橡胶手发生重叠导致身体仿真失稳。
-
+- 本仓库没有在你的具体 G1、左右 RH56E2、电源和网络上完成物理验收，因此不能仅凭代码审查宣称“已可安全上真机”。
+- 两只手出厂默认 IP 都可能是 `192.168.11.210`；同一网段使用时必须先离线修改其中一只，不能把两个设备同时接入同一 IP。
+- RH56E2 需要稳定 24 V 供电；手册给出的单手最大抓取电流为 4.5 A。不得从未经确认容量的 G1 接口直接取电。
+- 真机默认 `open_on_failure=false`、`open_on_shutdown=false`，避免异常时突然松手；跟踪超时发送 `-1` 保持当前关节目标。
