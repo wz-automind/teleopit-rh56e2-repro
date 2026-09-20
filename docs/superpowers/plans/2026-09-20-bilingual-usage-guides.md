@@ -28,12 +28,24 @@
 - Create: `tests/test_rh56e2_bench_test.py`
 
 **Interfaces:**
-- Consumes: `Rh56e2ModbusClient`, `ANGLE_ACT`, `ANGLE_SET`, `SPEED_SET`, `FAULT_ACT`, and `TEMPERATURE_ACT` from the installed overlay.
+- Consumes these symbols from the installed overlay:
+  - `Rh56e2ModbusClient`
+  - `ANGLE_ACT`
+  - `ANGLE_SET`
+  - `SPEED_SET`
+  - `FAULT_ACT`
+  - `TEMPERATURE_ACT`
 - Produces: a CLI that is read-only by default and can move one selected DOF by a bounded relative delta only after explicit confirmation.
 
 - [x] **Step 1: Write parser and target-calculation tests**
 
-Test that `bounded_target(500, 50) == 550`, values clamp to `0..1000`, and motion authorization rejects missing or incorrect confirmation text.
+Test the target calculation:
+
+```python
+bounded_target(500, 50) == 550
+```
+
+Also test that values clamp to the inclusive range `0..1000`, and that motion authorization rejects missing or incorrect confirmation text.
 
 - [x] **Step 2: Run the focused tests and confirm they fail before implementation**
 
@@ -43,7 +55,13 @@ Expected: import failure because `scripts.rh56e2_bench_test` does not exist.
 
 - [x] **Step 3: Implement the read-only default and guarded relative move**
 
-The CLI reads angle, fault, and temperature first. With `--write --confirm MOVE_RH56E2`, it writes a low speed, moves one DOF by at most 100 units while sending `-1` to the other five, reads feedback, restores the initial target, and closes the socket.
+The CLI reads angle, fault, and temperature first. Motion requires this exact gate:
+
+```text
+--write --confirm MOVE_RH56E2
+```
+
+After authorization, it writes a low speed, moves one DOF by at most 100 units while sending `-1` to the other five, reads feedback, restores the initial target, and closes the socket.
 
 - [x] **Step 4: Run tests and compilation**
 
@@ -58,7 +76,12 @@ Expected: all tests pass without a network connection.
 - Create: `docs/USAGE.en.md`
 
 **Interfaces:**
-- Consumes: `scripts/install.sh`, `scripts/validate.sh`, `scripts/rh56e2_preflight.py`, `scripts/rh56e2_bench_test.py`, `scripts/run_real.sh`.
+- Consumes these repository entry points:
+  - `scripts/install.sh`
+  - `scripts/validate.sh`
+  - `scripts/rh56e2_preflight.py`
+  - `scripts/rh56e2_bench_test.py`
+  - `scripts/run_real.sh`
 - Produces: operator-facing procedures with identical headings and command blocks.
 
 - [x] **Step 1: Document prerequisites, clone, virtual environment, installation, and configuration**
@@ -102,3 +125,4 @@ Run Python compilation, all unit tests, Markdown link checks for repository-rela
 - [ ] **Step 4: Publish through a reviewed GitHub change**
 
 Create a branch and pull request, wait for CI, then merge only if checks pass.
+
