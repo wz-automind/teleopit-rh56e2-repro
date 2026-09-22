@@ -17,12 +17,20 @@ jobs:
           git clone https://github.com/BotRunner64/Teleopit.git /tmp/Teleopit
           git -C /tmp/Teleopit checkout f9263865c581802ad531854b8e547e2403a945f3
       - name: Install lightweight test dependencies
-        run: python -m pip install numpy hydra-core
+        run: python -m pip install numpy hydra-core pytest ruff
       - name: Compile overlay and run protocol tests
         env:
           PYTHONPATH: /tmp/Teleopit
         run: |
           python -m compileall -q overlay scripts tests
           python -m unittest discover -s tests -v
+          pytest -q
+          ruff check src \
+            overlay/teleopit/sim2real/hands/rh56e2.py \
+            overlay/teleopit/sim2real/hands/rh56e2_protocol.py \
+            scripts/dev \
+            tests/test_repository_contract.py
       - name: Validate shell syntax
-        run: bash -n scripts/install.sh scripts/validate.sh scripts/run_real.sh
+        run: |
+          bash -n scripts/install.sh scripts/validate.sh scripts/run_real.sh
+          bash -n scripts/setup/install.sh scripts/dev/validate.sh scripts/run/*.sh

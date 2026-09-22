@@ -67,7 +67,7 @@ def main() -> int:
         driver_path = teleopit / "teleopit" / "sim2real" / "hands" / "rh56e2.py"
         if selected and driver_path.is_file():
             add_overlay_paths(teleopit)
-            from teleopit.sim2real.hands.rh56e2 import (  # type: ignore
+            from teleopit.sim2real.hands.rh56e2_protocol import (  # type: ignore
                 ANGLE_ACT,
                 CURRENT_ACT,
                 FAULT_ACT,

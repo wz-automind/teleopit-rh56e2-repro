@@ -1,7 +1,13 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.ruff_cache/
 .venv/
+.tmp/
+.tools/
+build/
+dist/
+*.egg-info/
 downloads/
 *.apk
 *.log

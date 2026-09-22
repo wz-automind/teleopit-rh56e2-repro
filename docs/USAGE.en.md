@@ -57,7 +57,7 @@ The installer creates `$TELEOPIT_DIR/.venv`; no manual `pip install` is required
 
 ```bash
 cd "$REPRO_DIR"
-bash scripts/install.sh --profile sim --download-pico-apk
+bash scripts/setup/install.sh --profile sim --download-pico-apk
 source "$TELEOPIT_DIR/.venv/bin/activate"
 python -V
 ```
@@ -65,7 +65,7 @@ python -V
 If the default `python3` is not 3.10/3.11, select one explicitly:
 
 ```bash
-bash scripts/install.sh --profile sim --download-pico-apk --python python3.11
+bash scripts/setup/install.sh --profile sim --download-pico-apk --python python3.11
 ```
 
 The installer checks out pinned commits, copies the overlay, installs editable packages, and downloads robot, GMR, policy, and BVH assets. Do not commit `.venv`, downloaded assets, device credentials, or tokens.
@@ -80,8 +80,8 @@ Confirm that the host sees the PICO before testing a robot. Do not enable hardwa
 
 ```bash
 cd "$REPRO_DIR"
-TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/validate.sh
-"$TELEOPIT_DIR/.venv/bin/python" scripts/rh56e2_preflight.py \
+TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/dev/validate.sh
+"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/check_rh56e2.py \
   --teleopit-dir "$TELEOPIT_DIR" --profile sim
 ```
 
@@ -109,14 +109,14 @@ test -f "$TELEOPIT_DIR/ckpt/track_g1.onnx" && echo "policy OK"
 
 ```bash
 cd "$REPRO_DIR"
-TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/validate.sh
+TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/dev/validate.sh
 ```
 
 ### 8.3 Start live PICO simulation
 
 ```bash
 cd "$TELEOPIT_DIR"
-.venv/bin/python scripts/run/run_sim_rh56e2.py \
+bash "$REPRO_DIR/scripts/run/run_sim_rh56e2.sh" \
   controller.policy_path=ckpt/track_g1.onnx
 ```
 
@@ -151,7 +151,7 @@ The configured `policy_hz: 50` and `pd_hz: 200` are policy and simulation-PD upd
 | Continues waiting for PICO | Check the host IP entered in PICO, LAN membership, firewall, and port `63901`; restart the PICO app before the 60-second timeout |
 | `Y` does not enter `MOCAP` | PICO has not supplied a valid body/hand frame; restore tracking and confirm that the terminal receives the first frame |
 | Viewer does not open | Check the GPU driver, OpenGL, and `DISPLAY`/Wayland; SSH requires working graphics forwarding or a local desktop |
-| Policy or model is missing | Repeat the Section 5 install without `--skip-assets`, then run `scripts/validate.sh` |
+| Policy or model is missing | Repeat the Section 5 install without `--skip-assets`, then run `scripts/dev/validate.sh` |
 | Left/right hand or joint direction is wrong | Stay in simulation, record the exact hand and DOF, and do not continue to the hardware steps after Section 8 |
 
 ## 9. Install hardware components
@@ -160,14 +160,14 @@ Return to this repository and add the G1 bridge to the same Teleopit directory:
 
 ```bash
 cd "$REPRO_DIR"
-bash scripts/install.sh --profile real
+bash scripts/setup/install.sh --profile real
 source "$TELEOPIT_DIR/.venv/bin/activate"
 ```
 
 Do not run hardware scripts from a different Python environment. Validate it:
 
 ```bash
-"$TELEOPIT_DIR/.venv/bin/python" scripts/rh56e2_preflight.py \
+"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/check_rh56e2.py \
   --teleopit-dir "$TELEOPIT_DIR" --profile real
 ```
 
@@ -190,7 +190,7 @@ Disconnect the G1 and attach one unloaded hand:
 
 ```bash
 cd "$REPRO_DIR"
-"$TELEOPIT_DIR/.venv/bin/python" scripts/rh56e2_preflight.py \
+"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/check_rh56e2.py \
   --teleopit-dir "$TELEOPIT_DIR" --profile sim --hardware \
   --left-host 192.168.11.210
 ```
@@ -202,7 +202,7 @@ Confirm that six angles are readable, every fault byte is zero, and temperatures
 Secure the hand, remove all payload, and keep the finger workspace clear. Start in the default read-only mode:
 
 ```bash
-"$TELEOPIT_DIR/.venv/bin/python" scripts/rh56e2_bench_test.py \
+"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/bench_rh56e2.py \
   --teleopit-dir "$TELEOPIT_DIR" --host 192.168.11.210 \
   --dof index --delta 50
 ```
@@ -210,7 +210,7 @@ Secure the hand, remove all payload, and keep the finger workspace clear. Start 
 After checking the readings, have an operator ready to remove power/use the emergency stop, then allow one motion:
 
 ```bash
-"$TELEOPIT_DIR/.venv/bin/python" scripts/rh56e2_bench_test.py \
+"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/bench_rh56e2.py \
   --teleopit-dir "$TELEOPIT_DIR" --host 192.168.11.210 \
   --dof index --delta 50 --speed 50 \
   --write --confirm MOVE_RH56E2
@@ -223,7 +223,7 @@ The tool changes one DOF, writes `-1` to hold the other five, and limits the del
 Connect both hands only after confirming unique addresses:
 
 ```bash
-"$TELEOPIT_DIR/.venv/bin/python" scripts/rh56e2_preflight.py \
+"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/check_rh56e2.py \
   --teleopit-dir "$TELEOPIT_DIR" --profile real --hardware \
   --left-host 192.168.11.210 --right-host 192.168.11.211
 ```
@@ -261,7 +261,7 @@ cd "$REPRO_DIR"
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
 LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 \
 NETWORK_INTERFACE=eth0 \
-bash scripts/run_real.sh
+bash scripts/run/run_sim2real_rh56e2.sh
 ```
 
 The entry point repeats the hardware preflight and stops on missing confirmations, duplicate addresses, or telemetry failures. Keep the robot unloaded and restrict motion range on the first run.
@@ -284,7 +284,7 @@ After stopping control, rerun the dual-hand read-only preflight from section 13 
 
 | Symptom | Check |
 |---|---|
-| Missing model, policy, or configuration | Rerun `install.sh` without `--skip-assets`, then run `validate.sh` |
+| Missing model, policy, or configuration | Rerun `scripts/setup/install.sh` without `--skip-assets`, then run `scripts/dev/validate.sh` |
 | `ModuleNotFoundError` | Use `$TELEOPIT_DIR/.venv/bin/python`; rerun the appropriate profile installation if needed |
 | RH56E2 timeout | Check power, static IP, subnet, port 6000, firewall, and Unit ID |
 | Only one of two hands connects | Power separately and verify addresses; remove duplicate IPs before reconnecting both |
@@ -296,16 +296,15 @@ After stopping control, rerun the dual-hand read-only preflight from section 13 
 
 ```bash
 # Install simulation environment
-bash scripts/install.sh --profile sim --download-pico-apk
+bash scripts/setup/install.sh --profile sim --download-pico-apk
 # Offline validation
-TELEOPIT_DIR="$HOME/Teleopit" bash scripts/validate.sh
+TELEOPIT_DIR="$HOME/Teleopit" bash scripts/dev/validate.sh
 # Install hardware components
-bash scripts/install.sh --profile real
+bash scripts/setup/install.sh --profile real
 # Read-only single-hand check
-$HOME/Teleopit/.venv/bin/python scripts/rh56e2_preflight.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
+$HOME/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
 # Full hardware entry point (only after all staged acceptance checks pass)
-ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 NETWORK_INTERFACE=eth0 bash scripts/run_real.sh
+ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 NETWORK_INTERFACE=eth0 bash scripts/run/run_sim2real_rh56e2.sh
 ```
 
 See [Hardware Control Review](真机控制检查.md) for protocol details, register mappings, model mappings, and outstanding physical acceptance work.
-

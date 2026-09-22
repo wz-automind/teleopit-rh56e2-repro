@@ -16,10 +16,13 @@ export PYTHONPATH="$SOMEHAND_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
   teleopit/sim/loop_rh56e2.py \
   teleopit/sim/session_rh56e2.py \
   teleopit/sim/rh56e2_hands.py \
+  teleopit/sim2real/hands/rh56e2_protocol.py \
   teleopit/sim2real/hands/rh56e2.py \
   teleopit/sim2real/hands/worker.py \
   scripts/run/run_sim_rh56e2.py \
-  "$ROOT_DIR/scripts/rh56e2_preflight.py"
+  "$ROOT_DIR/scripts/rh56e2_preflight.py" \
+  "$ROOT_DIR/scripts/dev/check_rh56e2.py" \
+  "$ROOT_DIR/scripts/dev/bench_rh56e2.py"
 
 "$PYTHON" -m unittest discover -s "$ROOT_DIR/tests" -v
 

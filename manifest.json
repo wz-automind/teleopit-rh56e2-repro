@@ -1,7 +1,14 @@
 {
   "project": "teleopit-rh56e2-repro",
-  "schema_version": 2,
-  "verified_on": "2026-09-20",
+  "schema_version": 3,
+  "verified_on": "2026-09-22",
+  "architecture": {
+    "base_runtime": "teleopit",
+    "hand_retargeting": "somehand",
+    "pico_transport": "pico_bridge",
+    "supported_hand": "Inspire RH56E2",
+    "integration_strategy": "pinned upstream sources plus path-compatible overlays"
+  },
   "upstream": {
     "teleopit": {
       "repository": "https://github.com/BotRunner64/Teleopit.git",
@@ -49,6 +56,8 @@
     "stdlib-only guarded RH56E2 Modbus TCP driver",
     "read-only hardware preflight",
     "pinned installation and asset retrieval",
-    "source-level CI protocol tests"
+    "source-level CI protocol tests",
+    "Teleopit-style setup, run, and development entry points",
+    "mirrored English and Chinese architecture and RH56E2 references"
   ]
 }
