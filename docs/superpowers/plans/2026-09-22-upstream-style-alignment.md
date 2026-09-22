@@ -232,3 +232,45 @@ Run: `python -m compileall -q src overlay scripts tests`,
 
 Expected: all checks pass; hardware is not contacted.
 
+### Task 7: Match the Unitree host command pair
+
+**Files:**
+- Modify: `README.md`
+- Modify: `docs/USAGE.en.md`
+- Modify: `docs/USAGE.zh-CN.md`
+- Modify: `CHANGELOG.md`
+- Test: `tests/test_usage_docs.py`
+
+**Interfaces:**
+- Consumes: `/home/unitree/miniforge3/bin/activate`, the `teleopit` Conda
+  environment, `/home/unitree/Teleopit`, and Teleopit's existing
+  `scripts/run/run_sim2real.py` entry point.
+- Produces: two ordered operator commands: unchanged G1 whole-body
+  teleoperation without hands, followed by the same command extended with the
+  RH56E2 config, endpoints, port, and write enable.
+
+- [x] **Step 1: Add a failing robot-host command test**
+
+Require both guides to contain the exact Miniforge activation, absolute
+Teleopit working directory, the no-hand command before the dual-E2 command,
+`hands.rh56e2.write_enabled=true`, and a warning not to run both processes at
+the same time.
+
+- [x] **Step 2: Verify the command test fails**
+
+Run: `python -m unittest tests.test_usage_docs.UsageGuideTests.test_robot_host_commands_match_the_unitree_deployment -v`
+
+Expected: failure because the guides still use `.venv` and the E2 explanatory
+command is read-only.
+
+- [x] **Step 3: Replace the real-hardware command pair**
+
+Document the exact `/home/unitree` commands in English and Chinese. Keep the
+upstream command unchanged, then change only the Hydra config and append the
+RH56E2 overrides for the E2 version. Retain staged preflight instructions.
+
+- [ ] **Step 4: Verify and publish**
+
+Run compilation and all unit tests, open a pull request, wait for Linux CI, and
+merge only after it passes. No test in this task may contact real hardware.
+
