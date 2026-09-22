@@ -1,4 +1,4 @@
-# Teleopit + RH56E2 开箱复现与真机接入
+# Teleopit + RH56E2 复现
 
 这个仓库把 [Teleopit](https://github.com/BotRunner64/Teleopit)、[somehand](https://github.com/BotRunner64/somehand) 和 [pico-bridge](https://github.com/BotRunner64/pico-bridge/blob/main/docs/zh/README.md) 固定到可复现版本，并加入 Inspire RH56E2 双手模型、PICO 手部重定向和受保护的 Modbus TCP 真机驱动。
 
