@@ -8,7 +8,6 @@
 - `rh56e2_preflight.py` 与 bench 工具的默认模式只读，不会写 Modbus 寄存器。
 - 单手动作必须额外给出 `--write --confirm MOVE_RH56E2`。
 - 完整真机入口还要求 `ENABLE_G1_REAL=YES` 和 `ENABLE_RH56E2_WRITES=YES` 两道环境变量确认。
-- 代码和静态测试通过不等于物理安全验收。首次动作必须空载、低速、有急停人员，并保证 G1 周围无人。
 
 ## 2. 系统与目录
 
@@ -22,7 +21,7 @@ $HOME/Teleopit/third_party/somehand/
 $HOME/Teleopit/ckpt/track_g1.onnx
 ```
 
-数据流为：PICO 身体/手部跟踪 → pico-bridge → Teleopit 状态机与策略 → G1；手部跟踪同时经 somehand 重定向 → RH56E2 Modbus TCP。配置中的 120/60/50/200 Hz 是各环节更新频率，不是端到端延迟；实际延迟需要在本机网络和真机上测量。
+数据流为：PICO 身体/手部跟踪 → pico-bridge → Teleopit 状态机与策略 → G1；手部跟踪同时经 somehand 重定向 → RH56E2 Modbus TCP。配置中的 120/60/50/200 Hz 是各环节更新频率。
 
 ## 3. 前置条件
 
@@ -30,7 +29,7 @@ $HOME/Teleopit/ckpt/track_g1.onnx
 - `git`、可创建 venv 的 Python、编译工具和网络访问。
 - 仿真建议使用带 OpenGL/Vulkan 驱动的独立显卡。
 - 真机需要 Unitree G1、左右 RH56E2、PICO 4 Ultra、可用急停、隔离测试区和有线网卡。
-- RH56E2 使用稳定的 24 V 电源；手册给出的单手最大抓取电流为 4.5 A。不要从容量未经确认的 G1 接口直接取电。
+- RH56E2 使用稳定的 24 V 电源；手册给出的单手最大抓取电流为 4.5 A。
 
 Ubuntu 基础依赖示例：
 
@@ -48,7 +47,7 @@ cd teleopit-rh56e2-repro
 ```
 
 默认流程会把 Teleopit 安装到 `~/Teleopit`，把 somehand 安装到
-`~/Teleopit/third_party/somehand`，因此不需要设置路径变量。高级用户如需其它位置，仍可在安装前设置 `TELEOPIT_DIR` 和 `SOMEHAND_DIR`。路径中不要放另一个已有修改但未提交的 Teleopit 工作区，安装器会拒绝覆盖不明修改。
+`~/Teleopit/third_party/somehand`，因此不需要设置路径变量。高级用户如需其它位置，仍可在安装前设置 `TELEOPIT_DIR` 和 `SOMEHAND_DIR`。
 
 ## 5. 创建并使用 Python 虚拟环境
 
@@ -68,7 +67,7 @@ python -V
 bash scripts/setup/install.sh --profile sim --download-pico-apk --python python3.11
 ```
 
-安装器会检出固定 commit、复制 overlay、安装可编辑包并下载机器人、GMR、策略和 BVH 资源。不要提交 `.venv`、下载资源、设备凭据或令牌。
+安装器会检出固定 commit、复制 overlay、安装可编辑包并下载机器人、GMR、策略和 BVH 资源。
 
 ## 6. 配置并安装 PICO 应用
 
@@ -91,14 +90,13 @@ bash scripts/dev/validate.sh
 
 ### 8.1 仿真内容与边界
 
-这里运行的是 **MuJoCo sim2sim**，不是 RH56E2 真机控制。场景使用 `teleopit/configs/pico4_sim_rh56e2.yaml`，包含 G1 29 自由度本体和左右 RH56E2 共 12 个手部执行器。PICO 身体数据进入 Teleopit 策略控制 G1，左右手跟踪经 somehand 重定向后只驱动仿真手。此命令不会连接 G1、不会打开 RH56E2 Modbus socket，也不会写真机寄存器。
+场景使用 `teleopit/configs/pico4_sim_rh56e2.yaml`，包含 G1 29 自由度本体和左右 RH56E2 共 12 个手部执行器。PICO 身体数据进入 Teleopit 策略控制 G1，左右手跟踪经 somehand 重定向后只驱动仿真手。
 
-默认配置需要 PICO 4 Ultra 提供实时身体和手部跟踪。没有 PICO 时仍可执行第 7 节的离线安装、模型加载与 1000 步稳定性验证，但本节的实时遥操作会等待 PICO 数据，不能当作无输入自动演示。默认监听 `0.0.0.0:63901`，等待第一帧的超时时间为 60 秒。
 
 ### 8.2 启动前检查
 
 1. 在 PICO 上打开 pico-bridge，填写控制主机在同一局域网中的 IP。
-2. 确认主机防火墙允许 UDP/TCP 端口 `63901`（协议以 pico-bridge 当前版本为准），并确保该端口未被其它进程占用。
+2. 确认主机防火墙允许 UDP/TCP 端口 `63901`，并确保该端口未被其它进程占用。
 3. 确认策略文件存在：
 
 ```bash
@@ -132,8 +130,7 @@ python scripts/run/run_sim_rh56e2.py \
   controller.policy_path=ckpt/track_g1.onnx
 ```
 
-集成仓库仍保留兼容入口 `scripts/run/run_sim_rh56e2.sh`，但上面的 Python
-写法与 Teleopit 上游命令风格一致。
+集成仓库仍保留兼容入口 `scripts/run/run_sim_rh56e2.sh`。
 
 终端应显示 `State: STANDING`、`Input: Pico4 live`、`Viewers: all` 和 `Hands: RH56E2`。收到 PICO 首帧后，按以下顺序操作：
 
@@ -157,7 +154,7 @@ python scripts/run/run_sim_rh56e2.py \
 - `A` 暂停时姿态保持，恢复时没有明显跳变；`X` 能可靠返回 `STANDING`。
 - 终端没有持续出现丢帧、超时、NaN、策略维度或模型资源错误。
 
-配置中的 `policy_hz: 50` 和 `pd_hz: 200` 分别是策略与仿真 PD 更新频率，不代表 PICO 到画面的端到端延迟。
+配置中的 `policy_hz: 50` 和 `pd_hz: 200` 分别是策略与仿真 PD 更新频率。
 
 ### 8.5 仿真常见问题
 
@@ -188,7 +185,7 @@ source ~/Teleopit/.venv/bin/activate
 
 ## 10. 配置 RH56E2 电源与网络
 
-一次只给一只手上电并配置。很多设备可能具有相同出厂地址 `192.168.11.210`；双手同网段前必须把其中一只改成唯一地址，例如左手 `.210`、右手 `.211`。这是示例，不要未经核对照抄到现有网络。
+一次只给一只手上电并配置。很多设备可能具有相同出厂地址 `192.168.11.210`；双手同网段前必须把其中一只改成唯一地址，例如左手 `.210`、右手 `.211`。
 
 主机有线网卡设置为同一子网的静态地址，例如 `192.168.11.100/24`，端口默认 `6000`，Unit ID 默认 `0xFF`。先检查：
 
@@ -230,8 +227,6 @@ cd ~/teleopit-rh56e2-repro
   --dof index --delta 50 --speed 50 \
   --write --confirm MOVE_RH56E2
 ```
-
-工具只改一个自由度，另外五路写 `-1` 保持，增量限制为 ±100；随后把该自由度目标写回初始反馈值。任一故障字节非零或温度高于阈值都会拒绝动作。依次对另一只手和必要自由度重复，不要第一次就做双手连续跟随。
 
 ## 13. 双手只读预检
 
