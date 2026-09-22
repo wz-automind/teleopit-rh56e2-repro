@@ -252,13 +252,15 @@ Stop if either connection, fault, or temperature check fails. Do not proceed to 
 
 ## 14. G1 dry-run and standing test
 
-Identify the wired G1 interface (for example `eth0`) and place/suspend the robot in the manufacturer-approved test posture:
+Confirm that the deployed G1 wired interface is `eth1` (or replace it with the
+actual name reported by the host) and place/suspend the robot in the
+manufacturer-approved test posture:
 
 ```bash
 cd ~/Teleopit
 .venv/bin/python scripts/run/standalone_standing.py \
   --policy ckpt/track_g1.onnx \
-  --network-interface eth0 \
+  --network-interface eth1 \
   --dry-run
 ```
 
@@ -267,7 +269,7 @@ After a successful dry-run, remove `--dry-run` only with the manufacturer proced
 ```bash
 .venv/bin/python scripts/run/standalone_standing.py \
   --policy ckpt/track_g1.onnx \
-  --network-interface eth0
+  --network-interface eth1
 ```
 
 Proceed only after the G1 can enter and leave the standing state reliably.
@@ -367,7 +369,7 @@ bash scripts/setup/install.sh --profile real
 # Read-only single-hand check
 $HOME/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
 # Full hardware entry point (only after all staged acceptance checks pass)
-ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 NETWORK_INTERFACE=eth0 bash scripts/run/run_sim2real_rh56e2.sh
+ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 NETWORK_INTERFACE=eth1 bash scripts/run/run_sim2real_rh56e2.sh
 ```
 
 See [Hardware Control Review](真机控制检查.md) for protocol details, register mappings, model mappings, and outstanding physical acceptance work.
