@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "teleopit-rh56e2"
+version = "0.2.0"
+description = "Teleopit integration for PICO-driven Inspire RH56E2 simulation and hardware control"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "teleopit @ git+https://github.com/BotRunner64/Teleopit.git@f9263865c581802ad531854b8e547e2403a945f3",
+    "somehand @ git+https://github.com/BotRunner64/somehand.git@f0a6b42e151ca10a6eec3e24c24c10cd13c40314",
+    "pico-bridge @ https://github.com/BotRunner64/pico-bridge/releases/download/v0.2.1/pico_bridge-0.2.1-py3-none-any.whl",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.8.0",
+    "tomli>=2.0; python_version < '3.11'",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+teleopit_rh56e2 = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]

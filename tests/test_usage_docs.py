@@ -18,12 +18,12 @@ class UsageGuideTests(unittest.TestCase):
 
     def test_both_guides_include_every_safety_entry_point(self):
         required = (
-            "scripts/install.sh",
-            "scripts/validate.sh",
-            "scripts/rh56e2_preflight.py",
-            "scripts/rh56e2_bench_test.py",
+            "scripts/setup/install.sh",
+            "scripts/dev/validate.sh",
+            "scripts/dev/check_rh56e2.py",
+            "scripts/dev/bench_rh56e2.py",
             "scripts/run/standalone_standing.py",
-            "scripts/run_real.sh",
+            "scripts/run/run_sim2real_rh56e2.sh",
             "teleopit/configs/pico4_sim_rh56e2.yaml",
             "MOVE_RH56E2",
             "ENABLE_G1_REAL=YES",
@@ -37,7 +37,7 @@ class UsageGuideTests(unittest.TestCase):
 
     def test_both_guides_document_live_simulation_operation(self):
         required = (
-            "scripts/run/run_sim_rh56e2.py",
+            "scripts/run/run_sim_rh56e2.sh",
             "63901",
             "`STANDING`",
             "`MOCAP`",
@@ -57,10 +57,22 @@ class UsageGuideTests(unittest.TestCase):
 
     def test_readme_links_both_guides(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("docs/USAGE.zh-CN.md", readme)
         self.assertIn("docs/USAGE.en.md", readme)
+        self.assertIn("docs/USAGE.zh-CN.md", readme)
+        self.assertIn("docs/en/README.md", readme)
+        self.assertIn("docs/zh/README.md", readme)
+
+    def test_reference_document_trees_are_mirrored(self):
+        english = {
+            path.relative_to(ROOT / "docs" / "en").as_posix()
+            for path in (ROOT / "docs" / "en").rglob("*.md")
+        }
+        chinese = {
+            path.relative_to(ROOT / "docs" / "zh").as_posix()
+            for path in (ROOT / "docs" / "zh").rglob("*.md")
+        }
+        self.assertEqual(english, chinese)
 
 
 if __name__ == "__main__":
     unittest.main()
-

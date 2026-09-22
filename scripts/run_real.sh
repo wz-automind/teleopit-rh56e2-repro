@@ -18,7 +18,7 @@ fi
 
 PYTHON="$TELEOPIT_DIR/.venv/bin/python"
 if [[ ! -x "$PYTHON" ]]; then
-  echo "Missing $PYTHON; run scripts/install.sh --profile real first." >&2
+  echo "Missing $PYTHON; run scripts/setup/install.sh --profile real first." >&2
   exit 2
 fi
 

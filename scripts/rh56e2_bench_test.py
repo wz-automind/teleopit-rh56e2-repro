@@ -87,7 +87,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         teleopit = args.teleopit_dir.expanduser().resolve()
         sys.path.insert(0, str(teleopit))
-        from teleopit.sim2real.hands.rh56e2 import (  # type: ignore
+        from teleopit.sim2real.hands.rh56e2_protocol import (  # type: ignore
             ANGLE_ACT,
             ANGLE_SET,
             FAULT_ACT,
