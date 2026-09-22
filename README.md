@@ -63,6 +63,16 @@ This follows Teleopit's normal `python scripts/run/...` command style. The E2
 variant changes only the entry point/configuration needed by the combined G1 +
 RH56E2 simulation. Installation and simulation do not write RH56E2 hardware.
 
+## Real-hardware commands
+
+On the deployed Unitree host, use the existing `teleopit` Miniforge environment
+and `/home/unitree/Teleopit`. The standard `pico4_sim2real` command runs
+whole-body teleoperation without dexterous hands; the
+`pico4_sim2real_rh56e2` variant adds the two E2 endpoints and enables hand
+writes. They are alternatives and must not run at the same time. Copy the exact
+commands and complete the staged checks in the [English usage guide](docs/USAGE.en.md#15-full-g1--rh56e2-hardware-test)
+or [Chinese usage guide](docs/USAGE.zh-CN.md#15-完整-g1--rh56e2-真机测试).
+
 ## Documentation
 
 | Topic | English | 中文 |

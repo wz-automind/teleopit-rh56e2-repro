@@ -269,39 +269,51 @@ dry-run 正常后，在厂家流程、急停和现场监护到位时去掉 `--dr
 
 ## 15. 完整 G1 + RH56E2 真机测试
 
-先启动 PICO 应用并确认跟踪稳定。不带 E2 的 Teleopit 原命令保持不变：
+先启动 PICO 应用并确认跟踪稳定。在 Unitree 主机上激活已有的 `teleopit`
+Conda 环境并进入 Teleopit 目录。不带灵巧手的全身遥操仍使用原 Teleopit 命令：
 
 ```bash
-cd ~/Teleopit
-source .venv/bin/activate
+source /home/unitree/miniforge3/bin/activate teleopit
+cd /home/unitree/Teleopit
+
+# 全身遥操启动指令（不包含灵巧手）
 python scripts/run/run_sim2real.py \
   --config-name pico4_sim2real \
   controller.policy_path=ckpt/track_g1.onnx \
   input.bridge_advertise_ip=192.168.50.62 \
-  real_robot.network_interface=eth0
+  real_robot.network_interface=eth1
 ```
 
-E2 的底层命令继续使用同一个 Teleopit 入口，只增加 E2 配置和双手参数。检查配置时保持只读：
+需要控制左右 E2 时，仍使用同一个 Teleopit 入口，只更换 E2 配置并追加双手连接参数：
 
 ```bash
+source /home/unitree/miniforge3/bin/activate teleopit
+cd /home/unitree/Teleopit
+
+# 全身遥操启动指令（包含左右 E2）
 python scripts/run/run_sim2real.py \
   --config-name pico4_sim2real_rh56e2 \
   controller.policy_path=ckpt/track_g1.onnx \
   input.bridge_advertise_ip=192.168.50.62 \
-  real_robot.network_interface=eth0 \
+  real_robot.network_interface=eth1 \
   hands.rh56e2.left_host=192.168.11.210 \
   hands.rh56e2.right_host=192.168.11.211 \
   hands.rh56e2.port=6000 \
-  hands.rh56e2.write_enabled=false
+  hands.rh56e2.write_enabled=true
 ```
 
-全部分阶段检查通过后，再从本仓库使用受保护的写入启动器。它会先预检，再执行上面的同一条 Teleopit 命令：
+这两条命令是二选一，不能同时运行。需要控制 E2 时，先停止不包含灵巧手的
+进程，再启动包含 E2 的命令。E2 命令会向实体灵巧手写入目标，因此必须先通过
+第 11-14 节检查，并保持机器人无负载、限制动作范围、硬件急停随时可用。
+
+本仓库还保留了可选的受保护启动器；它会再次执行真机预检，然后启动同一套
+E2 配置：
 
 ```bash
 cd ~/teleopit-rh56e2-repro
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
 LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 \
-NETWORK_INTERFACE=eth0 \
+NETWORK_INTERFACE=eth1 \
 bash scripts/run/run_sim2real_rh56e2.sh \
   input.bridge_advertise_ip=192.168.50.62
 ```

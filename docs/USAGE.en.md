@@ -274,42 +274,55 @@ Proceed only after the G1 can enter and leave the standing state reliably.
 
 ## 15. Full G1 + RH56E2 hardware test
 
-Start the PICO app and confirm stable tracking. The unchanged upstream Teleopit
-command, without E2, is:
+Start the PICO app and confirm stable tracking. On the deployed Unitree host,
+activate the existing `teleopit` Conda environment and enter the Teleopit
+checkout. The unchanged upstream command controls the whole body without the
+dexterous hands:
 
 ```bash
-cd ~/Teleopit
-source .venv/bin/activate
+source /home/unitree/miniforge3/bin/activate teleopit
+cd /home/unitree/Teleopit
+
+# Whole-body teleoperation (without dexterous hands)
 python scripts/run/run_sim2real.py \
   --config-name pico4_sim2real \
   controller.policy_path=ckpt/track_g1.onnx \
   input.bridge_advertise_ip=192.168.50.62 \
-  real_robot.network_interface=eth0
+  real_robot.network_interface=eth1
 ```
 
-The underlying E2 command is the same Teleopit entry point with the E2 config
-and hand endpoints added. Keep writes disabled when checking configuration:
+To control both E2 hands, start from the same command, select the E2
+configuration, and append only the hand connection parameters:
 
 ```bash
+source /home/unitree/miniforge3/bin/activate teleopit
+cd /home/unitree/Teleopit
+
+# Whole-body teleoperation (with dual RH56E2 hands)
 python scripts/run/run_sim2real.py \
   --config-name pico4_sim2real_rh56e2 \
   controller.policy_path=ckpt/track_g1.onnx \
   input.bridge_advertise_ip=192.168.50.62 \
-  real_robot.network_interface=eth0 \
+  real_robot.network_interface=eth1 \
   hands.rh56e2.left_host=192.168.11.210 \
   hands.rh56e2.right_host=192.168.11.211 \
   hands.rh56e2.port=6000 \
-  hands.rh56e2.write_enabled=false
+  hands.rh56e2.write_enabled=true
 ```
 
-After every staged check has passed, use the guarded write-enabled launcher
-from this repository. It executes the same command above after preflight:
+These two commands are alternatives and must not run at the same time. Stop the
+no-hand process before starting the E2 command. The E2 command enables physical
+hand writes, so run it only after sections 11-14 pass and with the robot unloaded,
+its motion range restricted, and hardware emergency stop ready.
+
+The repository also provides an optional guarded launcher. It repeats the
+hardware preflight before it starts the same E2 configuration:
 
 ```bash
 cd ~/teleopit-rh56e2-repro
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
 LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 \
-NETWORK_INTERFACE=eth0 \
+NETWORK_INTERFACE=eth1 \
 bash scripts/run/run_sim2real_rh56e2.sh \
   input.bridge_advertise_ip=192.168.50.62
 ```

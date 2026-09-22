@@ -111,6 +111,39 @@ class UsageGuideTests(unittest.TestCase):
                 with self.subTest(path=path.name, fragment=fragment):
                     self.assertNotIn(fragment, text)
 
+    def test_robot_host_commands_match_the_unitree_deployment(self):
+        required = (
+            "source /home/unitree/miniforge3/bin/activate teleopit",
+            "cd /home/unitree/Teleopit",
+            "# Whole-body teleoperation (without dexterous hands)",
+            "# Whole-body teleoperation (with dual RH56E2 hands)",
+            "hands.rh56e2.write_enabled=true",
+        )
+        chinese_required = (
+            "# 全身遥操启动指令（不包含灵巧手）",
+            "# 全身遥操启动指令（包含左右 E2）",
+            "不能同时运行",
+        )
+        english_required = ("must not run at the same time",)
+
+        english = DOCS[1].read_text(encoding="utf-8")
+        chinese = DOCS[0].read_text(encoding="utf-8")
+        for fragment in required:
+            with self.subTest(language="en", fragment=fragment):
+                self.assertIn(fragment, english)
+        for fragment in required[:2] + required[4:]:
+            with self.subTest(language="zh", fragment=fragment):
+                self.assertIn(fragment, chinese)
+        for fragment in chinese_required:
+            self.assertIn(fragment, chinese)
+        for fragment in english_required:
+            self.assertIn(fragment, english)
+
+        for text in (english, chinese):
+            base_index = text.index("--config-name pico4_sim2real ")
+            e2_index = text.index("--config-name pico4_sim2real_rh56e2 ")
+            self.assertLess(base_index, e2_index)
+
 
 if __name__ == "__main__":
     unittest.main()

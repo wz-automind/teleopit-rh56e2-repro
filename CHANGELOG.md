@@ -13,6 +13,9 @@
 - Kept standard Teleopit commands unchanged, documented E2 commands as additive
   config/driver variants, and allowed guarded real launches to forward Hydra
   overrides such as `input.bridge_advertise_ip`.
+- Added the exact Unitree deployment command pair using the `teleopit`
+  Miniforge environment, `/home/unitree/Teleopit`, `eth1`, and explicit dual-E2
+  endpoints; documented that the no-hand and E2 processes are alternatives.
 
 ## 0.1.0 - 2026-09-20
 
