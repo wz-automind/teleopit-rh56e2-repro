@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any, Sequence
 
 import numpy as np
-
 from teleopit.runtime.common import cfg_get
 from teleopit.sim2real.hands.base import HAND_SIDES, HandDevice, HandInputMapper, HandPoseCommand
 from teleopit.sim2real.hands.linkerhand_l6 import GripperMapper
