@@ -50,6 +50,7 @@ class RepositoryContractTests(unittest.TestCase):
         for relative in (
             "scripts/setup/install.sh",
             "scripts/dev/validate.sh",
+            "scripts/run_real.sh",
             "scripts/run/run_sim_rh56e2.sh",
             "scripts/run/run_sim2real_rh56e2.sh",
         ):
@@ -58,6 +59,26 @@ class RepositoryContractTests(unittest.TestCase):
                 self.assertIn("exec ", text)
                 self.assertIn('"$@"', text)
 
+    def test_real_launcher_extends_the_upstream_sim2real_command(self):
+        text = (ROOT / "scripts" / "run_real.sh").read_text(encoding="utf-8")
+        required = (
+            "scripts/run/run_sim2real.py",
+            "--config-name pico4_sim2real_rh56e2",
+            "controller.policy_path=ckpt/track_g1.onnx",
+            "real_robot.network_interface=$NETWORK_INTERFACE",
+            "hands.rh56e2.left_host=$LEFT_HAND_IP",
+            "hands.rh56e2.right_host=$RIGHT_HAND_IP",
+            "hands.rh56e2.write_enabled=true",
+        )
+        for fragment in required:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, text)
+        self.assertGreater(
+            text.rfind('"$@"'),
+            text.find('"hands.rh56e2.write_enabled=true"'),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
+

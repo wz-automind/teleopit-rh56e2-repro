@@ -35,4 +35,6 @@ exec "$PYTHON" scripts/run/run_sim2real.py \
   "hands.rh56e2.right_host=$RIGHT_HAND_IP" \
   "hands.rh56e2.left_port=$HAND_PORT" \
   "hands.rh56e2.right_port=$HAND_PORT" \
-  "hands.rh56e2.write_enabled=true"
+  "hands.rh56e2.write_enabled=true" \
+  "$@"
+

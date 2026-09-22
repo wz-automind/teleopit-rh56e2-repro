@@ -39,26 +39,29 @@ sudo apt update
 sudo apt install -y git python3 python3-venv python3-dev build-essential
 ```
 
-## 4. Clone the repository and configure paths
+## 4. Clone the repository
 
 ```bash
+cd ~
 git clone https://github.com/wz-automind/teleopit-rh56e2-repro.git
 cd teleopit-rh56e2-repro
-export REPRO_DIR="$PWD"
-export TELEOPIT_DIR="$HOME/Teleopit"
-export SOMEHAND_DIR="$TELEOPIT_DIR/third_party/somehand"
 ```
 
-To use different locations, set `TELEOPIT_DIR` and `SOMEHAND_DIR` before installation. Do not point them at another Teleopit checkout with unknown uncommitted changes; the installer refuses to overwrite such a checkout.
+The default workflow installs Teleopit at `~/Teleopit` and somehand at
+`~/Teleopit/third_party/somehand`, so path variables are not required. Advanced
+users may still set `TELEOPIT_DIR` and `SOMEHAND_DIR` before installation. Do
+not point them at another Teleopit checkout with unknown uncommitted changes;
+the installer refuses to overwrite such a checkout.
 
 ## 5. Create and use the Python virtual environment
 
-The installer creates `$TELEOPIT_DIR/.venv`; no manual `pip install` is required:
+The installer creates `~/Teleopit/.venv`; no manual `pip install` is required:
 
 ```bash
-cd "$REPRO_DIR"
+cd ~/teleopit-rh56e2-repro
 bash scripts/setup/install.sh --profile sim --download-pico-apk
-source "$TELEOPIT_DIR/.venv/bin/activate"
+cd ~/Teleopit
+source .venv/bin/activate
 python -V
 ```
 
@@ -79,10 +82,10 @@ Confirm that the host sees the PICO before testing a robot. Do not enable hardwa
 ## 7. Offline validation
 
 ```bash
-cd "$REPRO_DIR"
-TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/dev/validate.sh
-"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/check_rh56e2.py \
-  --teleopit-dir "$TELEOPIT_DIR" --profile sim
+cd ~/teleopit-rh56e2-repro
+bash scripts/dev/validate.sh
+~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+  --teleopit-dir ~/Teleopit --profile sim
 ```
 
 The checks must report success, pinned revisions, and all required assets. This stage does not contact a robot and sends no Modbus write.
@@ -102,23 +105,40 @@ The default configuration requires a PICO 4 Ultra for live body and hand trackin
 3. Confirm that the policy exists:
 
 ```bash
-test -f "$TELEOPIT_DIR/ckpt/track_g1.onnx" && echo "policy OK"
+test -f ~/Teleopit/ckpt/track_g1.onnx && echo "policy OK"
 ```
 
 4. Repeat the full no-hardware-write validation:
 
 ```bash
-cd "$REPRO_DIR"
-TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/dev/validate.sh
+cd ~/teleopit-rh56e2-repro
+bash scripts/dev/validate.sh
 ```
 
 ### 8.3 Start live PICO simulation
 
+Teleopit's unchanged PICO simulation command is:
+
 ```bash
-cd "$TELEOPIT_DIR"
-bash "$REPRO_DIR/scripts/run/run_sim_rh56e2.sh" \
+cd ~/Teleopit
+source .venv/bin/activate
+python scripts/run/run_sim.py \
+  --config-name pico4_sim \
   controller.policy_path=ckpt/track_g1.onnx
 ```
+
+The E2 version extends that command with the RH56E2-aware entry point and
+configuration:
+
+```bash
+python scripts/run/run_sim_rh56e2.py \
+  --config-name pico4_sim_rh56e2 \
+  controller.policy_path=ckpt/track_g1.onnx
+```
+
+The compatibility launcher `scripts/run/run_sim_rh56e2.sh` remains available
+from the integration repository, but the direct Python form above matches
+Teleopit's upstream command style.
 
 The terminal should show `State: STANDING`, `Input: Pico4 live`, `Viewers: all`, and `Hands: RH56E2`. After the first PICO frame arrives, use this sequence:
 
@@ -159,16 +179,16 @@ The configured `policy_hz: 50` and `pd_hz: 200` are policy and simulation-PD upd
 Return to this repository and add the G1 bridge to the same Teleopit directory:
 
 ```bash
-cd "$REPRO_DIR"
+cd ~/teleopit-rh56e2-repro
 bash scripts/setup/install.sh --profile real
-source "$TELEOPIT_DIR/.venv/bin/activate"
+source ~/Teleopit/.venv/bin/activate
 ```
 
 Do not run hardware scripts from a different Python environment. Validate it:
 
 ```bash
-"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/check_rh56e2.py \
-  --teleopit-dir "$TELEOPIT_DIR" --profile real
+~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+  --teleopit-dir ~/Teleopit --profile real
 ```
 
 ## 10. Configure RH56E2 power and networking
@@ -189,9 +209,9 @@ The two hands must not use the same IP/port pair. On-site personnel must verify 
 Disconnect the G1 and attach one unloaded hand:
 
 ```bash
-cd "$REPRO_DIR"
-"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/check_rh56e2.py \
-  --teleopit-dir "$TELEOPIT_DIR" --profile sim --hardware \
+cd ~/teleopit-rh56e2-repro
+~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+  --teleopit-dir ~/Teleopit --profile sim --hardware \
   --left-host 192.168.11.210
 ```
 
@@ -202,16 +222,16 @@ Confirm that six angles are readable, every fault byte is zero, and temperatures
 Secure the hand, remove all payload, and keep the finger workspace clear. Start in the default read-only mode:
 
 ```bash
-"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/bench_rh56e2.py \
-  --teleopit-dir "$TELEOPIT_DIR" --host 192.168.11.210 \
+~/Teleopit/.venv/bin/python scripts/dev/bench_rh56e2.py \
+  --teleopit-dir ~/Teleopit --host 192.168.11.210 \
   --dof index --delta 50
 ```
 
 After checking the readings, have an operator ready to remove power/use the emergency stop, then allow one motion:
 
 ```bash
-"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/bench_rh56e2.py \
-  --teleopit-dir "$TELEOPIT_DIR" --host 192.168.11.210 \
+~/Teleopit/.venv/bin/python scripts/dev/bench_rh56e2.py \
+  --teleopit-dir ~/Teleopit --host 192.168.11.210 \
   --dof index --delta 50 --speed 50 \
   --write --confirm MOVE_RH56E2
 ```
@@ -223,8 +243,8 @@ The tool changes one DOF, writes `-1` to hold the other five, and limits the del
 Connect both hands only after confirming unique addresses:
 
 ```bash
-"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/check_rh56e2.py \
-  --teleopit-dir "$TELEOPIT_DIR" --profile real --hardware \
+~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+  --teleopit-dir ~/Teleopit --profile real --hardware \
   --left-host 192.168.11.210 --right-host 192.168.11.211
 ```
 
@@ -235,7 +255,7 @@ Stop if either connection, fault, or temperature check fails. Do not proceed to 
 Identify the wired G1 interface (for example `eth0`) and place/suspend the robot in the manufacturer-approved test posture:
 
 ```bash
-cd "$TELEOPIT_DIR"
+cd ~/Teleopit
 .venv/bin/python scripts/run/standalone_standing.py \
   --policy ckpt/track_g1.onnx \
   --network-interface eth0 \
@@ -254,14 +274,44 @@ Proceed only after the G1 can enter and leave the standing state reliably.
 
 ## 15. Full G1 + RH56E2 hardware test
 
-Start the PICO app and confirm stable tracking. From this repository, run:
+Start the PICO app and confirm stable tracking. The unchanged upstream Teleopit
+command, without E2, is:
 
 ```bash
-cd "$REPRO_DIR"
+cd ~/Teleopit
+source .venv/bin/activate
+python scripts/run/run_sim2real.py \
+  --config-name pico4_sim2real \
+  controller.policy_path=ckpt/track_g1.onnx \
+  input.bridge_advertise_ip=192.168.50.62 \
+  real_robot.network_interface=eth0
+```
+
+The underlying E2 command is the same Teleopit entry point with the E2 config
+and hand endpoints added. Keep writes disabled when checking configuration:
+
+```bash
+python scripts/run/run_sim2real.py \
+  --config-name pico4_sim2real_rh56e2 \
+  controller.policy_path=ckpt/track_g1.onnx \
+  input.bridge_advertise_ip=192.168.50.62 \
+  real_robot.network_interface=eth0 \
+  hands.rh56e2.left_host=192.168.11.210 \
+  hands.rh56e2.right_host=192.168.11.211 \
+  hands.rh56e2.port=6000 \
+  hands.rh56e2.write_enabled=false
+```
+
+After every staged check has passed, use the guarded write-enabled launcher
+from this repository. It executes the same command above after preflight:
+
+```bash
+cd ~/teleopit-rh56e2-repro
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
 LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 \
 NETWORK_INTERFACE=eth0 \
-bash scripts/run/run_sim2real_rh56e2.sh
+bash scripts/run/run_sim2real_rh56e2.sh \
+  input.bridge_advertise_ip=192.168.50.62
 ```
 
 The entry point repeats the hardware preflight and stops on missing confirmations, duplicate addresses, or telemetry failures. Keep the robot unloaded and restrict motion range on the first run.
@@ -298,7 +348,7 @@ After stopping control, rerun the dual-hand read-only preflight from section 13 
 # Install simulation environment
 bash scripts/setup/install.sh --profile sim --download-pico-apk
 # Offline validation
-TELEOPIT_DIR="$HOME/Teleopit" bash scripts/dev/validate.sh
+bash scripts/dev/validate.sh
 # Install hardware components
 bash scripts/setup/install.sh --profile real
 # Read-only single-hand check
@@ -308,3 +358,4 @@ ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HA
 ```
 
 See [Hardware Control Review](真机控制检查.md) for protocol details, register mappings, model mappings, and outstanding physical acceptance work.
+
