@@ -242,13 +242,13 @@ cd ~/teleopit-rh56e2-repro
 
 ## 14. G1 dry-run 与站立测试
 
-先确定 G1 使用的有线接口名（如 `eth0`），机器人悬挂或处于厂家规定测试姿态：
+确认当前部署的 G1 有线接口为 `eth1`（若主机实际名称不同则替换），机器人悬挂或处于厂家规定测试姿态：
 
 ```bash
 cd ~/Teleopit
 .venv/bin/python scripts/run/standalone_standing.py \
   --policy ckpt/track_g1.onnx \
-  --network-interface eth0 \
+  --network-interface eth1 \
   --dry-run
 ```
 
@@ -257,7 +257,7 @@ dry-run 正常后，在厂家流程、急停和现场监护到位时去掉 `--dr
 ```bash
 .venv/bin/python scripts/run/standalone_standing.py \
   --policy ckpt/track_g1.onnx \
-  --network-interface eth0
+  --network-interface eth1
 ```
 
 只有 G1 能稳定进入和退出站立状态，才继续全链路遥操作。
@@ -353,7 +353,7 @@ bash scripts/setup/install.sh --profile real
 # 单手只读检查
 $HOME/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
 # 完整真机入口（仅在分阶段验收全部通过后）
-ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 NETWORK_INTERFACE=eth0 bash scripts/run/run_sim2real_rh56e2.sh
+ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 NETWORK_INTERFACE=eth1 bash scripts/run/run_sim2real_rh56e2.sh
 ```
 
 协议、寄存器、模型映射和仍待完成的物理验收见 [真机控制检查](真机控制检查.md)。

@@ -274,3 +274,79 @@ RH56E2 overrides for the E2 version. Retain staged preflight instructions.
 Run compilation and all unit tests, open a pull request, wait for Linux CI, and
 merge only after it passes. No test in this task may contact real hardware.
 
+### Task 8: Replace the stale Chinese installation note with a quick entry
+
+**Files:**
+- Modify: `docs/安装与运行.md`
+- Modify: `docs/superpowers/plans/2026-09-22-upstream-style-alignment.md`
+- Test: `tests/test_usage_docs.py`
+
+**Interfaces:**
+- Consumes: the canonical commands in `docs/USAGE.zh-CN.md` and the current
+  `scripts/setup`, `scripts/run`, and `scripts/dev` entry points.
+- Produces: a short Chinese quick-start page that links to the canonical guide
+  and cannot silently retain the old `eth0` or compatibility-wrapper commands.
+
+- [x] **Step 1: Add a failing quick-guide contract test**
+
+Require the quick guide to link to `USAGE.zh-CN.md`, use the current setup and
+run entry points, contain the two ordered Unitree-host commands, and reject the
+old `eth0`, `scripts/install.sh`, `scripts/run_real.sh`, and nine-test wording.
+
+- [x] **Step 2: Verify that the old guide fails the contract**
+
+Run: `python -m unittest tests.test_usage_docs.UsageGuideTests.test_chinese_quick_guide_points_to_current_commands -v`
+
+Expected: failure because `docs/安装与运行.md` still contains old aliases,
+`eth0`, and obsolete test counts.
+
+- [x] **Step 3: Rewrite the page as a current quick entry**
+
+Keep only environment scope, clean installation, simulation, the no-hand/E2
+real command pair, safety gates, and a prominent canonical-guide link. Clearly
+separate the installer-managed `.venv` from the deployed Unitree Miniforge
+environment.
+
+- [ ] **Step 4: Verify and publish**
+
+Run compilation and all unit tests, open a pull request, wait for Linux CI, and
+merge only after it passes. No test in this task may contact real hardware.
+
+### Task 9: Audit remaining documentation and upstream freshness
+
+**Files:**
+- Modify: `docs/USAGE.en.md`
+- Modify: `docs/USAGE.zh-CN.md`
+- Modify: `docs/真机控制检查.md`
+- Modify: `docs/en/reference/upstreams.md`
+- Modify: `docs/zh/reference/upstreams.md`
+- Modify: `CHANGELOG.md`
+- Test: `tests/test_usage_docs.py`
+
+**Interfaces:**
+- Consumes: the Unitree host's `eth1` deployment value, release metadata from
+  the three upstream GitHub repositories, and the pinned commits in
+  `manifest.json`.
+- Produces: consistent hardware examples plus a dated stable-release audit that
+  distinguishes releases from unverified development-branch commits.
+
+- [x] **Step 1: Scan non-plan documentation for stale commands**
+
+Search for `eth0`, compatibility wrappers, obsolete test counts, and old
+deployment paths. Confirm which `.venv` examples remain valid for clean installs.
+
+- [x] **Step 2: Compare pinned revisions with upstream releases and branches**
+
+Verify release tags and compare pinned commits with Teleopit `master`, somehand
+`master`, and `xr_teleoperate` `main`. Do not upgrade to unreleased commits.
+
+- [x] **Step 3: Align stale command examples and record the audit**
+
+Use `eth1` in concrete G1 hardware commands, update the hardware review date,
+and add mirrored English/Chinese audit notes with the somehand compatibility
+caveat.
+
+- [ ] **Step 4: Verify and publish**
+
+Run compilation, the complete unit test suite, and Linux CI before merging.
+

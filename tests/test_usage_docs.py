@@ -5,6 +5,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = (ROOT / "docs" / "USAGE.zh-CN.md", ROOT / "docs" / "USAGE.en.md")
+QUICK_GUIDE = ROOT / "docs" / "安装与运行.md"
 
 
 class UsageGuideTests(unittest.TestCase):
@@ -143,6 +144,39 @@ class UsageGuideTests(unittest.TestCase):
             base_index = text.index("--config-name pico4_sim2real ")
             e2_index = text.index("--config-name pico4_sim2real_rh56e2 ")
             self.assertLess(base_index, e2_index)
+            for stale_interface in (
+                "real_robot.network_interface=eth0",
+                "NETWORK_INTERFACE=eth0",
+                "--network-interface eth0",
+            ):
+                self.assertNotIn(stale_interface, text)
+
+    def test_chinese_quick_guide_points_to_current_commands(self):
+        text = QUICK_GUIDE.read_text(encoding="utf-8")
+        required = (
+            "[完整中文使用手册](USAGE.zh-CN.md)",
+            "scripts/setup/install.sh",
+            "scripts/run/run_sim_rh56e2.py",
+            "source /home/unitree/miniforge3/bin/activate teleopit",
+            "cd /home/unitree/Teleopit",
+            "--config-name pico4_sim2real ",
+            "--config-name pico4_sim2real_rh56e2 ",
+            "real_robot.network_interface=eth1",
+            "hands.rh56e2.write_enabled=true",
+            "不能同时运行",
+        )
+        forbidden = (
+            "NETWORK_INTERFACE=eth0",
+            "bash scripts/install.sh",
+            "bash scripts/run_real.sh",
+            "9 项 Modbus/映射单元测试",
+        )
+        for fragment in required:
+            with self.subTest(required=fragment):
+                self.assertIn(fragment, text)
+        for fragment in forbidden:
+            with self.subTest(forbidden=fragment):
+                self.assertNotIn(fragment, text)
 
 
 if __name__ == "__main__":

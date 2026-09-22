@@ -16,6 +16,9 @@
 - Added the exact Unitree deployment command pair using the `teleopit`
   Miniforge environment, `/home/unitree/Teleopit`, `eth1`, and explicit dual-E2
   endpoints; documented that the no-hand and E2 processes are alternatives.
+- Replaced the stale Chinese installation note with a current quick-start,
+  aligned every concrete G1 hardware example to `eth1`, and recorded an
+  upstream-release freshness audit without adopting unreleased commits.
 
 ## 0.1.0 - 2026-09-20
 

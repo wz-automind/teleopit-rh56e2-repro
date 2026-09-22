@@ -4,6 +4,15 @@
 
 `manifest.json` 是机器可读的事实来源。当前集成面向 Teleopit v0.5.0、somehand 0.3.0 和 pico-bridge v0.2.1。Teleopit 与 somehand 使用完整 commit SHA 固定；pico-bridge wheel/APK 使用版本和 SHA-256 固定。
 
+## 版本新鲜度检查（2026-09-22）
+
+- Teleopit `v0.5.0` 是最新正式版，固定提交与当前 `master` 相同。
+- somehand `v0.3.0` 是最新正式版；当前 `master` 另有 9 个未发布提交并包含接口删改，因此在完成兼容性验证前不跟随 `master`。
+- pico-bridge `v0.2.1` 是最新正式版，仓库同时固定 wheel 和 APK 的 SHA-256。
+- `xr_teleoperate` 仅作为 E2 六自由度顺序和映射公式的参考；固定提交与当前 `main` 相同。
+
+这里的“最新”指检查日期当时的最新正式发布版，不表示自动追踪上游开发分支。
+
 ## 为什么使用 overlay
 
 本仓库不是三个无关历史的代码快照。安装器检出精确的 Teleopit 和 somehand 源码，安装已发布的 pico-bridge 包，再把集成文件复制到它们正常的上游路径。最终运行目录保持 Teleopit 的结构，而本仓库需要审查的范围只包含 RH56E2 相关增加。
@@ -30,3 +39,4 @@
 不能只改版本号就声称组合兼容。静态测试和物理验收是两类独立证据。
 
 [架构与数据流](architecture.md) · [第三方组件](../../../THIRD_PARTY.md)
+
