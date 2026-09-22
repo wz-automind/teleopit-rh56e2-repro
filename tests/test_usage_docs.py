@@ -73,6 +73,45 @@ class UsageGuideTests(unittest.TestCase):
         }
         self.assertEqual(english, chinese)
 
+    def test_guides_show_upstream_commands_before_e2_extensions(self):
+        required = (
+            "python scripts/run/run_sim.py",
+            "--config-name pico4_sim",
+            "python scripts/run/run_sim_rh56e2.py",
+            "--config-name pico4_sim_rh56e2",
+            "python scripts/run/run_sim2real.py",
+            "--config-name pico4_sim2real",
+            "--config-name pico4_sim2real_rh56e2",
+            "hands.rh56e2.left_host=192.168.11.210",
+            "hands.rh56e2.right_host=192.168.11.211",
+        )
+        for path in DOCS:
+            text = path.read_text(encoding="utf-8")
+            for fragment in required:
+                with self.subTest(path=path.name, fragment=fragment):
+                    self.assertIn(fragment, text)
+            self.assertLess(
+                text.index("python scripts/run/run_sim.py"),
+                text.index("python scripts/run/run_sim_rh56e2.py"),
+            )
+            self.assertLess(
+                text.index("--config-name pico4_sim2real \\"),
+                text.index("--config-name pico4_sim2real_rh56e2"),
+            )
+
+    def test_default_workflow_does_not_require_path_exports(self):
+        forbidden = (
+            'export REPRO_DIR="$PWD"',
+            'export TELEOPIT_DIR="$HOME/Teleopit"',
+            'export SOMEHAND_DIR="$TELEOPIT_DIR/third_party/somehand"',
+        )
+        for path in DOCS:
+            text = path.read_text(encoding="utf-8")
+            for fragment in forbidden:
+                with self.subTest(path=path.name, fragment=fragment):
+                    self.assertNotIn(fragment, text)
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -39,26 +39,26 @@ sudo apt update
 sudo apt install -y git python3 python3-venv python3-dev build-essential
 ```
 
-## 4. 克隆仓库并配置路径
+## 4. 克隆仓库
 
 ```bash
+cd ~
 git clone https://github.com/wz-automind/teleopit-rh56e2-repro.git
 cd teleopit-rh56e2-repro
-export REPRO_DIR="$PWD"
-export TELEOPIT_DIR="$HOME/Teleopit"
-export SOMEHAND_DIR="$TELEOPIT_DIR/third_party/somehand"
 ```
 
-如需其它位置，安装前修改 `TELEOPIT_DIR` 和 `SOMEHAND_DIR`。路径中不要放另一个已有修改但未提交的 Teleopit 工作区，安装器会拒绝覆盖不明修改。
+默认流程会把 Teleopit 安装到 `~/Teleopit`，把 somehand 安装到
+`~/Teleopit/third_party/somehand`，因此不需要设置路径变量。高级用户如需其它位置，仍可在安装前设置 `TELEOPIT_DIR` 和 `SOMEHAND_DIR`。路径中不要放另一个已有修改但未提交的 Teleopit 工作区，安装器会拒绝覆盖不明修改。
 
 ## 5. 创建并使用 Python 虚拟环境
 
-安装器会创建 `$TELEOPIT_DIR/.venv`，不需要手动 `pip install`：
+安装器会创建 `~/Teleopit/.venv`，不需要手动 `pip install`：
 
 ```bash
-cd "$REPRO_DIR"
+cd ~/teleopit-rh56e2-repro
 bash scripts/setup/install.sh --profile sim --download-pico-apk
-source "$TELEOPIT_DIR/.venv/bin/activate"
+cd ~/Teleopit
+source .venv/bin/activate
 python -V
 ```
 
@@ -79,10 +79,10 @@ APK 下载到 `downloads/PicoBridge_v0.2.1_20260522_release.apk`，脚本会校�
 ## 7. 离线验证
 
 ```bash
-cd "$REPRO_DIR"
-TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/dev/validate.sh
-"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/check_rh56e2.py \
-  --teleopit-dir "$TELEOPIT_DIR" --profile sim
+cd ~/teleopit-rh56e2-repro
+bash scripts/dev/validate.sh
+~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+  --teleopit-dir ~/Teleopit --profile sim
 ```
 
 必须看到验证通过、固定版本和关键资源存在。此阶段不连接机器人，不会发送 Modbus 写请求。
@@ -102,23 +102,38 @@ TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/dev/validate.sh
 3. 确认策略文件存在：
 
 ```bash
-test -f "$TELEOPIT_DIR/ckpt/track_g1.onnx" && echo "policy OK"
+test -f ~/Teleopit/ckpt/track_g1.onnx && echo "policy OK"
 ```
 
 4. 再次做无硬件写入的完整检查：
 
 ```bash
-cd "$REPRO_DIR"
-TELEOPIT_DIR="$TELEOPIT_DIR" bash scripts/dev/validate.sh
+cd ~/teleopit-rh56e2-repro
+bash scripts/dev/validate.sh
 ```
 
 ### 8.3 启动实时 PICO 仿真
 
+Teleopit 原有的 PICO 仿真命令保持不变：
+
 ```bash
-cd "$TELEOPIT_DIR"
-bash "$REPRO_DIR/scripts/run/run_sim_rh56e2.sh" \
+cd ~/Teleopit
+source .venv/bin/activate
+python scripts/run/run_sim.py \
+  --config-name pico4_sim \
   controller.policy_path=ckpt/track_g1.onnx
 ```
+
+E2 版本只在这个命令基础上换成 RH56E2 入口和配置：
+
+```bash
+python scripts/run/run_sim_rh56e2.py \
+  --config-name pico4_sim_rh56e2 \
+  controller.policy_path=ckpt/track_g1.onnx
+```
+
+集成仓库仍保留兼容入口 `scripts/run/run_sim_rh56e2.sh`，但上面的 Python
+写法与 Teleopit 上游命令风格一致。
 
 终端应显示 `State: STANDING`、`Input: Pico4 live`、`Viewers: all` 和 `Hands: RH56E2`。收到 PICO 首帧后，按以下顺序操作：
 
@@ -159,16 +174,16 @@ bash "$REPRO_DIR/scripts/run/run_sim_rh56e2.sh" \
 回到本仓库，在同一个 Teleopit 目录上增加 G1 bridge：
 
 ```bash
-cd "$REPRO_DIR"
+cd ~/teleopit-rh56e2-repro
 bash scripts/setup/install.sh --profile real
-source "$TELEOPIT_DIR/.venv/bin/activate"
+source ~/Teleopit/.venv/bin/activate
 ```
 
 不要用另一个 Python 环境运行真机脚本。验证：
 
 ```bash
-"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/check_rh56e2.py \
-  --teleopit-dir "$TELEOPIT_DIR" --profile real
+~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+  --teleopit-dir ~/Teleopit --profile real
 ```
 
 ## 10. 配置 RH56E2 电源与网络
@@ -189,9 +204,9 @@ ping -c 3 192.168.11.211
 先断开 G1，只连接一只空载手：
 
 ```bash
-cd "$REPRO_DIR"
-"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/check_rh56e2.py \
-  --teleopit-dir "$TELEOPIT_DIR" --profile sim --hardware \
+cd ~/teleopit-rh56e2-repro
+~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+  --teleopit-dir ~/Teleopit --profile sim --hardware \
   --left-host 192.168.11.210
 ```
 
@@ -202,16 +217,16 @@ cd "$REPRO_DIR"
 确保手固定牢固、无负载、手指行程内无物体。先用默认只读模式：
 
 ```bash
-"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/bench_rh56e2.py \
-  --teleopit-dir "$TELEOPIT_DIR" --host 192.168.11.210 \
+~/Teleopit/.venv/bin/python scripts/dev/bench_rh56e2.py \
+  --teleopit-dir ~/Teleopit --host 192.168.11.210 \
   --dof index --delta 50
 ```
 
 确认读数无误后，现场人员准备断电/急停，再允许一次动作：
 
 ```bash
-"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/bench_rh56e2.py \
-  --teleopit-dir "$TELEOPIT_DIR" --host 192.168.11.210 \
+~/Teleopit/.venv/bin/python scripts/dev/bench_rh56e2.py \
+  --teleopit-dir ~/Teleopit --host 192.168.11.210 \
   --dof index --delta 50 --speed 50 \
   --write --confirm MOVE_RH56E2
 ```
@@ -223,8 +238,8 @@ cd "$REPRO_DIR"
 双手地址确认唯一后再同时接入：
 
 ```bash
-"$TELEOPIT_DIR/.venv/bin/python" scripts/dev/check_rh56e2.py \
-  --teleopit-dir "$TELEOPIT_DIR" --profile real --hardware \
+~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+  --teleopit-dir ~/Teleopit --profile real --hardware \
   --left-host 192.168.11.210 --right-host 192.168.11.211
 ```
 
@@ -235,7 +250,7 @@ cd "$REPRO_DIR"
 先确定 G1 使用的有线接口名（如 `eth0`），机器人悬挂或处于厂家规定测试姿态：
 
 ```bash
-cd "$TELEOPIT_DIR"
+cd ~/Teleopit
 .venv/bin/python scripts/run/standalone_standing.py \
   --policy ckpt/track_g1.onnx \
   --network-interface eth0 \
@@ -254,14 +269,41 @@ dry-run 正常后，在厂家流程、急停和现场监护到位时去掉 `--dr
 
 ## 15. 完整 G1 + RH56E2 真机测试
 
-先启动 PICO 应用并确认跟踪稳定。在本仓库执行：
+先启动 PICO 应用并确认跟踪稳定。不带 E2 的 Teleopit 原命令保持不变：
 
 ```bash
-cd "$REPRO_DIR"
+cd ~/Teleopit
+source .venv/bin/activate
+python scripts/run/run_sim2real.py \
+  --config-name pico4_sim2real \
+  controller.policy_path=ckpt/track_g1.onnx \
+  input.bridge_advertise_ip=192.168.50.62 \
+  real_robot.network_interface=eth0
+```
+
+E2 的底层命令继续使用同一个 Teleopit 入口，只增加 E2 配置和双手参数。检查配置时保持只读：
+
+```bash
+python scripts/run/run_sim2real.py \
+  --config-name pico4_sim2real_rh56e2 \
+  controller.policy_path=ckpt/track_g1.onnx \
+  input.bridge_advertise_ip=192.168.50.62 \
+  real_robot.network_interface=eth0 \
+  hands.rh56e2.left_host=192.168.11.210 \
+  hands.rh56e2.right_host=192.168.11.211 \
+  hands.rh56e2.port=6000 \
+  hands.rh56e2.write_enabled=false
+```
+
+全部分阶段检查通过后，再从本仓库使用受保护的写入启动器。它会先预检，再执行上面的同一条 Teleopit 命令：
+
+```bash
+cd ~/teleopit-rh56e2-repro
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
 LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 \
 NETWORK_INTERFACE=eth0 \
-bash scripts/run/run_sim2real_rh56e2.sh
+bash scripts/run/run_sim2real_rh56e2.sh \
+  input.bridge_advertise_ip=192.168.50.62
 ```
 
 入口会再次运行真机预检，缺少任一确认、地址重复或遥测异常时停止。首次运行保持机器人无负载并限制动作范围。
@@ -298,7 +340,7 @@ bash scripts/run/run_sim2real_rh56e2.sh
 # 安装仿真环境
 bash scripts/setup/install.sh --profile sim --download-pico-apk
 # 离线验证
-TELEOPIT_DIR="$HOME/Teleopit" bash scripts/dev/validate.sh
+bash scripts/dev/validate.sh
 # 安装真机组件
 bash scripts/setup/install.sh --profile real
 # 单手只读检查
@@ -308,3 +350,4 @@ ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HA
 ```
 
 协议、寄存器、模型映射和仍待完成的物理验收见 [真机控制检查](真机控制检查.md)。
+

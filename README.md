@@ -52,12 +52,16 @@ Ubuntu/Linux with Python 3.10 or 3.11 is recommended.
 git clone https://github.com/wz-automind/teleopit-rh56e2-repro.git
 cd teleopit-rh56e2-repro
 bash scripts/setup/install.sh --profile sim --download-pico-apk
-TELEOPIT_DIR="$HOME/Teleopit" bash scripts/dev/validate.sh
-bash scripts/run/run_sim_rh56e2.sh \
+cd ~/Teleopit
+source .venv/bin/activate
+python scripts/run/run_sim_rh56e2.py \
+  --config-name pico4_sim_rh56e2 \
   controller.policy_path=ckpt/track_g1.onnx
 ```
 
-The simulation command waits for PICO tracking input. Installation and validation do not send commands to G1 or RH56E2 hardware.
+This follows Teleopit's normal `python scripts/run/...` command style. The E2
+variant changes only the entry point/configuration needed by the combined G1 +
+RH56E2 simulation. Installation and simulation do not write RH56E2 hardware.
 
 ## Documentation
 
@@ -72,3 +76,4 @@ The simulation command waits for PICO tracking input. Installation and validatio
 ## Hardware status
 
 The protocol, mapping, configuration, and safety interlocks are covered by deterministic source tests. The repository has not physically accepted your exact G1, two RH56E2 hands, power supply, network, firmware, payload, or emergency-stop setup. Complete the staged procedure in the usage guide before enabling writes.
+

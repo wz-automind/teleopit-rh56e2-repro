@@ -189,3 +189,46 @@ syntax where Bash is available.
 - [ ] **Step 3: Publish through a pull request**
 
 Create a branch and PR, wait for CI, and merge only when all checks succeed.
+
+### Task 6: Make E2 commands additive to upstream commands
+
+**Files:**
+- Modify: `scripts/run_real.sh`
+- Modify: `README.md`
+- Modify: `docs/USAGE.en.md`
+- Modify: `docs/USAGE.zh-CN.md`
+- Test: `tests/test_repository_contract.py`
+- Test: `tests/test_usage_docs.py`
+
+**Interfaces:**
+- Consumes: Teleopit's `run_sim.py` and `run_sim2real.py` command surfaces.
+- Produces: matching upstream command examples followed by E2-specific config
+  and hand overrides; the guarded real launcher forwards extra Hydra overrides.
+
+- [x] **Step 1: Add failing command-alignment tests**
+
+Require both guides to show the unchanged upstream sim and sim2real commands,
+then the E2 variants based on those commands. Require the real launcher to
+forward `"$@"` after its guarded RH56E2 defaults.
+
+- [x] **Step 2: Verify the new tests fail**
+
+Run: `python -m unittest tests.test_repository_contract tests.test_usage_docs -v`
+
+Expected: failure because the guides omit the upstream/E2 command pairs and
+`scripts/run_real.sh` drops additional Hydra overrides.
+
+- [x] **Step 3: Align launch behavior and documentation**
+
+Append `"$@"` to the real Teleopit invocation. Replace mandatory path exports
+in the default guide with `cd ~/teleopit-rh56e2-repro` and `cd ~/Teleopit`.
+Document the upstream command first and its E2 extension immediately after it.
+
+- [ ] **Step 4: Run deterministic verification**
+
+Run: `python -m compileall -q src overlay scripts tests`,
+`python -m unittest discover -s tests -v`, and
+`bash -n scripts/run_real.sh scripts/run/*.sh`.
+
+Expected: all checks pass; hardware is not contacted.
+
