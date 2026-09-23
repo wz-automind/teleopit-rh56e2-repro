@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import argparse
 import json
-from pathlib import Path
 import sys
 import time
+from pathlib import Path
 from typing import Sequence
 
 DOF_ORDER = ("pinky", "ring", "middle", "index", "thumb_bend", "thumb_rotation")
@@ -85,63 +85,52 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.write:
             authorize_motion(args.write, args.confirm)
 
-        teleopit = args.teleopit_dir.expanduser().resolve()
-        sys.path.insert(0, str(teleopit))
-        from teleopit.sim2real.hands.rh56e2_protocol import (  # type: ignore
-            ANGLE_ACT,
-            ANGLE_SET,
-            FAULT_ACT,
-            SPEED_SET,
-            TEMPERATURE_ACT,
-            Rh56e2ModbusClient,
-        )
+        from teleopit_rh56e2.sdk import RH56E2Hand
 
-        client = Rh56e2ModbusClient(args.host, args.port, unit_id=args.unit_id, timeout_s=args.timeout)
+        hand = RH56E2Hand(
+            args.host,
+            args.port,
+            unit_id=args.unit_id,
+            timeout=args.timeout,
+            write_enabled=args.write,
+            max_temperature_c=args.max_temperature_c,
+        )
         try:
-            client.connect()
-            initial = client.read_holding(ANGLE_ACT, 6)
-            faults = tuple(client.read_bytes(FAULT_ACT, 6))
-            temperatures = tuple(client.read_bytes(TEMPERATURE_ACT, 6))
-            report("initial", initial, faults, temperatures)
+            hand.connect()
+            initial = hand.read_telemetry()
+            report("initial", initial.angle, initial.fault, initial.temperature)
 
             if not args.write:
                 print("READ-ONLY: telemetry read completed; no Modbus write was sent.")
                 return 0
-            if any(faults):
-                raise RuntimeError(f"refusing motion: non-zero fault bytes {faults}")
-            if max(temperatures) > args.max_temperature_c:
-                raise RuntimeError(
-                    f"refusing motion: maximum temperature {max(temperatures)} C exceeds "
-                    f"{args.max_temperature_c} C"
-                )
 
             index = DOF_ORDER.index(args.dof)
-            target = bounded_target(initial[index], args.delta)
-            if target == initial[index]:
+            target = bounded_target(initial.angle[index], args.delta)
+            if target == initial.angle[index]:
                 raise RuntimeError("refusing motion: target is unchanged after range clamping")
 
             restore = [-1] * 6
-            restore[index] = initial[index]
+            restore[index] = initial.angle[index]
             move_attempted = False
             try:
-                client.write_holding(SPEED_SET, [args.speed] * 6)
+                hand.set_speed([args.speed] * 6)
                 move = [-1] * 6
                 move[index] = target
                 move_attempted = True
-                client.write_holding(ANGLE_SET, move)
+                hand.set_positions(move)
                 time.sleep(args.settle_s)
-                moved = client.read_holding(ANGLE_ACT, 6)
-                report("moved", moved, tuple(client.read_bytes(FAULT_ACT, 6)), tuple(client.read_bytes(TEMPERATURE_ACT, 6)))
+                moved = hand.read_telemetry()
+                report("moved", moved.angle, moved.fault, moved.temperature)
             finally:
                 if move_attempted:
-                    client.write_holding(ANGLE_SET, restore)
+                    hand.set_positions(restore)
                     time.sleep(args.settle_s)
-                    restored = client.read_holding(ANGLE_ACT, 6)
-                    report("restored", restored, tuple(client.read_bytes(FAULT_ACT, 6)), tuple(client.read_bytes(TEMPERATURE_ACT, 6)))
-            print(f"PASS: {args.dof} moved from {initial[index]} toward {target} and was commanded back to {initial[index]}.")
+                    restored = hand.read_telemetry()
+                    report("restored", restored.angle, restored.fault, restored.temperature)
+            print(f"PASS: {args.dof} moved from {initial.angle[index]} toward {target} and was commanded back to {initial.angle[index]}.")
             return 0
         finally:
-            client.close()
+            hand.close()
     except (ImportError, OSError, RuntimeError, ValueError) as exc:
         print(f"FAIL: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1

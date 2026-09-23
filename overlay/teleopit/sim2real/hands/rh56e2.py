@@ -17,17 +17,8 @@ from teleopit.runtime.common import cfg_get
 from teleopit.sim2real.hands.base import HAND_SIDES, HandDevice, HandInputMapper, HandPoseCommand
 from teleopit.sim2real.hands.linkerhand_l6 import GripperMapper
 from teleopit.sim2real.hands.pico_landmarks import pico_hand_to_landmarks
-from teleopit.sim2real.hands.rh56e2_protocol import (
-    ANGLE_ACT,
-    ANGLE_SET,
-    CURRENT_ACT,
-    FAULT_ACT,
-    FORCE_ACT,
-    SPEED_SET,
-    STATE_ACT,
-    TEMPERATURE_ACT,
-    Rh56e2ModbusClient,
-)
+
+from teleopit_rh56e2.sdk import RH56E2Hand
 
 logger = logging.getLogger(__name__)
 
@@ -135,28 +126,28 @@ def parse_rh56e2_config(cfg: Any) -> Rh56e2Config:
 class Rh56e2Device(HandDevice):
     def __init__(self, config: Rh56e2Config):
         self.config = config
-        self._clients: dict[str, Rh56e2ModbusClient] = {}
+        self._hands: dict[str, RH56E2Hand] = {}
         self._last_pose: dict[str, tuple[int, ...] | None] = {side: None for side in config.sides}
         self._last_write_s: dict[str, float] = {side: 0.0 for side in config.sides}
-        self._last_health_s: dict[str, float] = {side: 0.0 for side in config.sides}
-        self._faults: dict[str, tuple[int, ...]] = {}
-        self._temperatures: dict[str, tuple[int, ...]] = {}
 
     def connect(self) -> None:
         try:
             for side, (host, port) in self.config.endpoints.items():
-                client = Rh56e2ModbusClient(
-                    host, port, unit_id=self.config.unit_id, timeout_s=self.config.timeout_s
+                hand = RH56E2Hand(
+                    host,
+                    port,
+                    unit_id=self.config.unit_id,
+                    timeout=self.config.timeout_s,
+                    write_enabled=self.config.write_enabled,
+                    max_temperature_c=self.config.max_temperature_c,
                 )
-                client.connect()
-                self._clients[side] = client
-                self._refresh_health(side, force=True)
-                angles = client.read_holding(ANGLE_ACT, 6)
-                logger.info("RH56E2 %s connected at %s:%d; angles=%s", side, host, port, angles)
+                hand.connect()
+                self._hands[side] = hand
+                telemetry = hand.read_telemetry()
+                logger.info("RH56E2 %s connected at %s:%d; angles=%s", side, host, port, telemetry.angle)
             if self.config.write_enabled:
-                self._assert_safe_to_write()
-                for client in self._clients.values():
-                    client.write_holding(SPEED_SET, self.config.speed)
+                for hand in self._hands.values():
+                    hand.set_speed(self.config.speed)
             else:
                 logger.warning("RH56E2 write interlock is OFF; telemetry is read-only")
         except Exception:
@@ -164,11 +155,10 @@ class Rh56e2Device(HandDevice):
             raise
 
     def get_state(self, side: str) -> tuple[float, ...]:
-        client = self._client(side)
-        return tuple(float(value) for value in client.read_holding(ANGLE_ACT, 6))
+        return tuple(float(value) for value in self._hand(side).read_telemetry().angle)
 
     def send_pose(self, side: str, pose: Sequence[int], *, force: bool = False, reason: str = "") -> None:
-        values = tuple(_command_value(value, f"{side}.pose") for value in pose)
+        values = tuple(pose)
         if len(values) != 6:
             raise ValueError(f"RH56E2 pose must contain six values, got {len(values)}")
         if not self.config.write_enabled:
@@ -181,9 +171,7 @@ class Rh56e2Device(HandDevice):
         previous = self._last_pose[side]
         if not force and previous is not None and max(abs(a - b) for a, b in zip(values, previous)) < self.config.min_change:
             return
-        self._refresh_health(side, now_s=now)
-        self._assert_side_safe(side)
-        self._client(side).write_holding(ANGLE_SET, values)
+        self._hand(side).set_positions(values)
         self._last_pose[side] = values
         self._last_write_s[side] = now
 
@@ -200,51 +188,28 @@ class Rh56e2Device(HandDevice):
                 self.open_all(force=True, reason="shutdown")
             except Exception:
                 logger.exception("Failed to open RH56E2 hands during shutdown")
-        for client in self._clients.values():
-            client.close()
-        self._clients.clear()
+        for hand in self._hands.values():
+            hand.close()
+        self._hands.clear()
 
     def diagnostics(self, side: str) -> dict[str, tuple[int, ...]]:
-        client = self._client(side)
+        telemetry = self._hand(side).read_telemetry()
         return {
-            "angle": client.read_holding(ANGLE_ACT, 6),
-            "force": tuple(_signed16(value) for value in client.read_holding(FORCE_ACT, 6)),
-            "current": client.read_holding(CURRENT_ACT, 6),
-            "fault": tuple(client.read_bytes(FAULT_ACT, 6)),
-            "state": tuple(client.read_bytes(STATE_ACT, 6)),
-            "temperature": tuple(client.read_bytes(TEMPERATURE_ACT, 6)),
+            "angle": telemetry.angle,
+            "force": telemetry.force,
+            "current": telemetry.current,
+            "fault": telemetry.fault,
+            "state": telemetry.state,
+            "temperature": telemetry.temperature,
         }
 
-    def _refresh_health(self, side: str, *, now_s: float | None = None, force: bool = False) -> None:
-        now = time.monotonic() if now_s is None else now_s
-        if not force and now - self._last_health_s[side] < self.config.health_poll_interval_s:
-            return
-        client = self._client(side)
-        self._faults[side] = tuple(client.read_bytes(FAULT_ACT, 6))
-        self._temperatures[side] = tuple(client.read_bytes(TEMPERATURE_ACT, 6))
-        self._last_health_s[side] = now
-
-    def _assert_safe_to_write(self) -> None:
-        for side in self.config.sides:
-            self._assert_side_safe(side)
-
-    def _assert_side_safe(self, side: str) -> None:
-        faults = self._faults.get(side, ())
-        temperatures = self._temperatures.get(side, ())
-        if len(faults) != 6 or any(faults):
-            raise RuntimeError(f"RH56E2 {side} has active or unreadable faults: {faults}")
-        if len(temperatures) != 6 or max(temperatures) > self.config.max_temperature_c:
-            raise RuntimeError(
-                f"RH56E2 {side} temperature unsafe: {temperatures}, limit={self.config.max_temperature_c} C"
-            )
-
-    def _client(self, side: str) -> Rh56e2ModbusClient:
+    def _hand(self, side: str) -> RH56E2Hand:
         if side not in self.config.sides:
             raise ValueError(f"RH56E2 side is not configured: {side!r}")
-        client = self._clients.get(side)
-        if client is None:
+        hand = self._hands.get(side)
+        if hand is None:
             raise RuntimeError(f"RH56E2 {side} is not connected")
-        return client
+        return hand
 
 
 class Rh56e2SomehandMapper(HandInputMapper):
@@ -336,13 +301,6 @@ def _raw_value(value: object, name: str) -> int:
     return parsed
 
 
-def _command_value(value: object, name: str) -> int:
-    parsed = int(value)
-    if parsed == -1:
-        return parsed
-    return _raw_value(parsed, name)
-
-
 def _pose(values: Sequence[object], name: str) -> tuple[int, ...]:
     pose = tuple(_raw_value(value, name) for value in values)
     if len(pose) != 6:
@@ -369,7 +327,3 @@ def _temperature_limit(value: object) -> int:
     if not 1 <= parsed <= 100:
         raise ValueError(f"hands.rh56e2.max_temperature_c must be in 1..100, got {value!r}")
     return parsed
-
-
-def _signed16(value: int) -> int:
-    return value - 0x10000 if value & 0x8000 else value

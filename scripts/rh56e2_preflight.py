@@ -5,9 +5,9 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 TELEOPIT_COMMIT = "f9263865c581802ad531854b8e547e2403a945f3"
@@ -67,34 +67,33 @@ def main() -> int:
         driver_path = teleopit / "teleopit" / "sim2real" / "hands" / "rh56e2.py"
         if selected and driver_path.is_file():
             add_overlay_paths(teleopit)
-            from teleopit.sim2real.hands.rh56e2_protocol import (  # type: ignore
-                ANGLE_ACT,
-                CURRENT_ACT,
-                FAULT_ACT,
-                FORCE_ACT,
-                STATE_ACT,
-                TEMPERATURE_ACT,
-                Rh56e2ModbusClient,
-            )
+            from teleopit_rh56e2.sdk import RH56E2Hand
 
             for side, host in selected:
-                client = Rh56e2ModbusClient(host, args.port, unit_id=args.unit_id, timeout_s=args.timeout)
+                hand = RH56E2Hand(
+                    host,
+                    args.port,
+                    unit_id=args.unit_id,
+                    timeout=args.timeout,
+                    write_enabled=False,
+                )
                 try:
-                    client.connect()
+                    hand.connect()
+                    telemetry = hand.read_telemetry()
                     diagnostics = {
-                        "angle": client.read_holding(ANGLE_ACT, 6),
-                        "force": client.read_holding(FORCE_ACT, 6),
-                        "current": client.read_holding(CURRENT_ACT, 6),
-                        "fault": tuple(client.read_bytes(FAULT_ACT, 6)),
-                        "state": tuple(client.read_bytes(STATE_ACT, 6)),
-                        "temperature": tuple(client.read_bytes(TEMPERATURE_ACT, 6)),
+                        "angle": telemetry.angle,
+                        "force": telemetry.force,
+                        "current": telemetry.current,
+                        "fault": telemetry.fault,
+                        "state": telemetry.state,
+                        "temperature": telemetry.temperature,
                     }
                     safe = not any(diagnostics["fault"]) and max(diagnostics["temperature"]) <= 70
                     check(checks, f"{side} hand telemetry", safe, diagnostics)
                 except (OSError, RuntimeError, ValueError) as exc:
                     check(checks, f"{side} hand telemetry", False, f"{type(exc).__name__}: {exc}")
                 finally:
-                    client.close()
+                    hand.close()
 
     passed = all(item["ok"] for item in checks)
     if args.json:
