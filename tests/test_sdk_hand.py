@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 import sys
+import threading
 import unittest
 from pathlib import Path
 
@@ -69,6 +70,32 @@ class FakeClient:
         self.events.append(("write", address, tuple(values)))
 
 
+class InterleavingProbeClient(FakeClient):
+    """Makes a missing hand-level write lock deterministically observable."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.first_fault_seen = threading.Event()
+        self.second_fault_seen = threading.Event()
+        self.release_first_fault = threading.Event()
+        self._fault_reads = 0
+        self._fault_reads_lock = threading.Lock()
+
+    def read_holding(self, address: int, count: int) -> tuple[int, ...]:
+        if address != FAULT_ACT:
+            return super().read_holding(address, count)
+        with self._fault_reads_lock:
+            fault_read_number = self._fault_reads
+            self._fault_reads += 1
+        result = super().read_holding(address, count)
+        if fault_read_number == 0:
+            self.first_fault_seen.set()
+            self.release_first_fault.wait(timeout=1)
+        else:
+            self.second_fault_seen.set()
+        return result
+
+
 class RH56E2HandReadTests(unittest.TestCase):
     def test_read_telemetry_returns_immutable_six_channel_snapshot(self) -> None:
         hand = RH56E2Hand("192.0.2.10", client=FakeClient())
@@ -114,6 +141,21 @@ def connected_hand(*, client: FakeClient, write_enabled: bool = False, max_tempe
 
 
 class RH56E2HandWriteTests(unittest.TestCase):
+    def test_constructor_rejects_coerced_transport_values(self) -> None:
+        invalid_kwargs = (
+            {"port": True},
+            {"port": 6000.5},
+            {"unit_id": True},
+            {"unit_id": 1.5},
+            {"timeout": True},
+        )
+        for kwargs in invalid_kwargs:
+            with self.subTest(kwargs=kwargs), self.assertRaises((TypeError, ValueError)):
+                RH56E2Hand("192.0.2.10", client=FakeClient(), **kwargs)
+
+        hand = RH56E2Hand("192.0.2.10", client=FakeClient(), timeout=0.25)
+        self.assertEqual(hand.timeout, 0.25)
+
     def test_constructor_requires_a_boolean_write_opt_in(self) -> None:
         with self.assertRaises(TypeError):
             RH56E2Hand("192.0.2.10", client=FakeClient(), write_enabled="yes")  # type: ignore[arg-type]
@@ -129,6 +171,16 @@ class RH56E2HandWriteTests(unittest.TestCase):
 
         with self.assertRaises(WriteDisabledError):
             hand.set_positions([500] * 6)
+
+        self.assertEqual(client.reads, [])
+        self.assertEqual(client.writes, [])
+
+    def test_unconnected_disabled_write_raises_write_disabled_without_protocol_request(self) -> None:
+        client = FakeClient()
+        hand = RH56E2Hand("192.0.2.10", client=client)
+
+        with self.assertRaises(WriteDisabledError):
+            hand.set_speed([500] * 6)
 
         self.assertEqual(client.reads, [])
         self.assertEqual(client.writes, [])
@@ -192,6 +244,52 @@ class RH56E2HandWriteTests(unittest.TestCase):
             hand.set_positions([501] * 6)
 
         self.assertEqual(len([write for write in client.writes if write[0] == ANGLE_SET]), 1)
+
+    def test_concurrent_writes_keep_health_reads_and_writes_atomic(self) -> None:
+        client = InterleavingProbeClient()
+        hand = connected_hand(client=client, write_enabled=True)
+        errors: list[BaseException] = []
+        start = threading.Barrier(3)
+
+        def send_speed() -> None:
+            try:
+                start.wait()
+                hand.set_speed([400] * 6)
+            except BaseException as exc:  # Thread failures must fail this test below.
+                errors.append(exc)
+
+        def send_positions() -> None:
+            try:
+                start.wait()
+                hand.set_positions([500] * 6)
+            except BaseException as exc:  # Thread failures must fail this test below.
+                errors.append(exc)
+
+        speed_thread = threading.Thread(target=send_speed)
+        position_thread = threading.Thread(target=send_positions)
+        speed_thread.start()
+        position_thread.start()
+        start.wait()
+        self.assertTrue(client.first_fault_seen.wait(timeout=1))
+        client.second_fault_seen.wait(timeout=0.05)
+        client.release_first_fault.set()
+        speed_thread.join(timeout=1)
+        position_thread.join(timeout=1)
+
+        self.assertFalse(speed_thread.is_alive())
+        self.assertFalse(position_thread.is_alive())
+        self.assertEqual(errors, [])
+        speed_transaction = [
+            ("read", FAULT_ACT, 6),
+            ("read", TEMPERATURE_ACT, 6),
+            ("write", SPEED_SET, (400, 400, 400, 400, 400, 400)),
+        ]
+        position_transaction = [
+            ("read", FAULT_ACT, 6),
+            ("read", TEMPERATURE_ACT, 6),
+            ("write", ANGLE_SET, (500, 500, 500, 500, 500, 500)),
+        ]
+        self.assertIn(client.events, [speed_transaction + position_transaction, position_transaction + speed_transaction])
 
     def test_over_temperature_and_unreadable_health_block_writes(self) -> None:
         cases = (

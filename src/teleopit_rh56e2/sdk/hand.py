@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+import threading
 from numbers import Integral
 from typing import Sequence
 
@@ -38,15 +40,16 @@ class RH56E2Hand:
         if not isinstance(max_temperature_c, Integral) or isinstance(max_temperature_c, bool):
             raise TypeError(f"max_temperature_c must be an integer, got {max_temperature_c!r}")
         self.host = str(host)
-        self.port = int(port)
-        self.unit_id = int(unit_id)
-        self.timeout = float(timeout)
+        self.port = _validate_port(port)
+        self.unit_id = _validate_unit_id(unit_id)
+        self.timeout = _validate_timeout(timeout)
         self.write_enabled = write_enabled
         self.max_temperature_c = int(max_temperature_c)
         self._client = client or RH56E2ModbusClient(
             self.host, self.port, unit_id=self.unit_id, timeout=self.timeout
         )
         self._connected = False
+        self._write_lock = threading.Lock()
 
     @property
     def endpoint(self) -> tuple[str, int]:
@@ -94,12 +97,13 @@ class RH56E2Hand:
         self._write_guarded(ANGLE_SET, values, allow_hold=True)
 
     def _write_guarded(self, address: int, values: Sequence[int], *, allow_hold: bool) -> None:
-        self._require_connected()
         if not self.write_enabled:
             raise WriteDisabledError("RH56E2 writes are disabled; construct with write_enabled=True to permit motion")
         command = _validate_command(values, allow_hold=allow_hold)
-        self._require_healthy()
-        self._client.write_holding(address, command)
+        with self._write_lock:
+            self._require_connected()
+            self._require_healthy()
+            self._client.write_holding(address, command)
 
     def _require_healthy(self) -> None:
         try:
@@ -128,6 +132,33 @@ class RH56E2Hand:
 
 def _signed_16(value: int) -> int:
     return value - 0x10000 if value >= 0x8000 else value
+
+
+def _validate_port(value: object) -> int:
+    if not isinstance(value, Integral) or isinstance(value, bool):
+        raise TypeError(f"port must be an integer, got {value!r}")
+    parsed = int(value)
+    if not 1 <= parsed <= 65535:
+        raise ValueError(f"port must be in 1..65535, got {value!r}")
+    return parsed
+
+
+def _validate_unit_id(value: object) -> int:
+    if not isinstance(value, Integral) or isinstance(value, bool):
+        raise TypeError(f"unit_id must be an integer, got {value!r}")
+    parsed = int(value)
+    if not 0 <= parsed <= 0xFF:
+        raise ValueError(f"unit_id must be in 0..255, got {value!r}")
+    return parsed
+
+
+def _validate_timeout(value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"timeout must be a finite positive number, got {value!r}")
+    parsed = float(value)
+    if not math.isfinite(parsed) or parsed <= 0:
+        raise ValueError(f"timeout must be a finite positive number, got {value!r}")
+    return parsed
 
 
 def _validate_command(values: Sequence[int], *, allow_hold: bool) -> tuple[int, ...]:
