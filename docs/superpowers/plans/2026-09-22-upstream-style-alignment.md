@@ -392,7 +392,7 @@ Add `require_teleopit_conda`, install packages with `TELEOPIT_PYTHON`, update
 all operational launchers, and document one-time environment creation plus the
 exact activation command.
 
-- [ ] **Step 4: Re-audit and publish**
+- [x] **Step 4: Re-audit and publish**
 
 Scan executable scripts and operator docs for `.venv`, run compilation and all
 unit tests, wait for Linux CI, then merge. No verification step may contact
