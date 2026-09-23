@@ -11,6 +11,8 @@ SOMEHAND_DIR="${SOMEHAND_DIR:-$TELEOPIT_DIR/third_party/somehand}"
 cd "$TELEOPIT_DIR"
 export PYTHONPATH="$SOMEHAND_DIR/src${PYTHONPATH:+:$PYTHONPATH}"
 
+"$TELEOPIT_PYTHON" -c 'from teleopit_rh56e2.sdk import RH56E2Hand; hand = RH56E2Hand("192.0.2.10"); assert hand.endpoint == ("192.0.2.10", 6000); assert not hand.write_enabled; assert not hand._connected'
+
 "$TELEOPIT_PYTHON" -m py_compile \
   teleopit/pipeline_rh56e2.py \
   teleopit/robots/mujoco_robot_rh56e2.py \

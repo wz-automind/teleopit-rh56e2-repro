@@ -23,6 +23,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["teleopit_rh56e2*"]
 
 [tool.setuptools.package-data]
 teleopit_rh56e2 = ["py.typed"]

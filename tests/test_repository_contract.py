@@ -12,6 +12,21 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class RepositoryContractTests(unittest.TestCase):
+    def test_sdk_is_installed_and_validated_without_hardware_connection(self):
+        install_text = (ROOT / "scripts" / "install.sh").read_text(encoding="utf-8")
+        validate_text = (ROOT / "scripts" / "validate.sh").read_text(encoding="utf-8")
+
+        self.assertIn('pip install -e "$ROOT_DIR" --no-deps', install_text)
+        self.assertIn("from teleopit_rh56e2.sdk import RH56E2Hand", validate_text)
+
+    def test_sdk_uses_src_package_discovery_without_extra_runtime_dependencies(self):
+        project_config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+        package_find = project_config["tool"]["setuptools"]["packages"]["find"]
+        self.assertEqual(package_find["where"], ["src"])
+        self.assertIn("teleopit_rh56e2*", package_find["include"])
+        self.assertEqual(len(project_config["project"]["dependencies"]), 3)
+
     def test_project_declares_all_upstream_dependencies(self):
         project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
         self.assertEqual(project["requires-python"], ">=3.10")
