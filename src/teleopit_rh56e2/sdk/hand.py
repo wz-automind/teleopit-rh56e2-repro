@@ -83,9 +83,9 @@ class RH56E2Hand:
         angle = self._read_six(ANGLE_ACT)
         force = tuple(_signed_16(value) for value in self._read_six(FORCE_ACT))
         current = self._read_six(CURRENT_ACT)
-        fault = self._read_six(FAULT_ACT)
-        state = self._read_six(STATE_ACT)
-        temperature = self._read_six(TEMPERATURE_ACT)
+        fault = self._read_six_bytes(FAULT_ACT)
+        state = self._read_six_bytes(STATE_ACT)
+        temperature = self._read_six_bytes(TEMPERATURE_ACT)
         return RH56E2Telemetry(angle, force, current, fault, state, temperature)
 
     def set_speed(self, values: Sequence[int]) -> None:
@@ -96,10 +96,15 @@ class RH56E2Hand:
         """Set six channel positions after a fresh device-health check."""
         self._write_guarded(ANGLE_SET, values, allow_hold=True)
 
+    @staticmethod
+    def validate_positions(values: Sequence[int]) -> tuple[int, ...]:
+        """Validate a six-channel position command without device I/O."""
+        return _validate_command(values, allow_hold=True)
+
     def _write_guarded(self, address: int, values: Sequence[int], *, allow_hold: bool) -> None:
         if not self.write_enabled:
             raise WriteDisabledError("RH56E2 writes are disabled; construct with write_enabled=True to permit motion")
-        command = _validate_command(values, allow_hold=allow_hold)
+        command = self.validate_positions(values) if allow_hold else _validate_command(values, allow_hold=False)
         with self._write_lock:
             self._require_connected()
             self._require_healthy()
@@ -107,8 +112,8 @@ class RH56E2Hand:
 
     def _require_healthy(self) -> None:
         try:
-            fault = self._read_six(FAULT_ACT)
-            temperature = self._read_six(TEMPERATURE_ACT)
+            fault = self._read_six_bytes(FAULT_ACT)
+            temperature = self._read_six_bytes(TEMPERATURE_ACT)
             if len(fault) != 6 or len(temperature) != 6:
                 raise DeviceSafetyError("RH56E2 health check did not return six channels")
             if any(value != 0 for value in fault):
@@ -124,6 +129,9 @@ class RH56E2Hand:
 
     def _read_six(self, address: int) -> tuple[int, ...]:
         return tuple(self._client.read_holding(address, 6))
+
+    def _read_six_bytes(self, address: int) -> tuple[int, ...]:
+        return tuple(self._client.read_bytes(address, 6))
 
     def _require_connected(self) -> None:
         if not self._connected:

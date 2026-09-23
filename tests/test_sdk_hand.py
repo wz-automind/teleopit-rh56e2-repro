@@ -34,6 +34,7 @@ class FakeClient:
         self.connect_calls = 0
         self.close_calls = 0
         self.reads: list[tuple[int, int]] = []
+        self.byte_reads: list[tuple[int, int]] = []
         self.writes: list[tuple[int, tuple[int, ...]]] = []
         self.events: list[tuple[object, ...]] = []
         self.fault_reads = list(fault_reads or [])
@@ -45,7 +46,12 @@ class FakeClient:
             CURRENT_ACT: (10, 11, 12, 13, 14, 15),
             FAULT_ACT: (0, 0, 0, 0, 0, 0),
             STATE_ACT: (20, 21, 22, 23, 24, 25),
-            TEMPERATURE_ACT: (30, 31, 32, 33, 34, 35),
+            TEMPERATURE_ACT: (0x1919, 0x1919, 0x1919, 0x1919, 0x1919, 0x1919),
+        }
+        self.byte_values = {
+            FAULT_ACT: bytes((0, 0, 0, 0, 0, 0)),
+            STATE_ACT: bytes((20, 21, 22, 23, 24, 25)),
+            TEMPERATURE_ACT: bytes((25, 25, 25, 25, 25, 25)),
         }
 
     def connect(self) -> None:
@@ -65,6 +71,17 @@ class FakeClient:
             return self.temperature_reads.pop(0)
         return self.values[address]
 
+    def read_bytes(self, address: int, byte_count: int) -> bytes:
+        self.byte_reads.append((address, byte_count))
+        self.events.append(("read_bytes", address, byte_count))
+        if address in self.unreadable_addresses:
+            raise RuntimeError("simulated unreadable register")
+        if address == FAULT_ACT and self.fault_reads:
+            return bytes(self.fault_reads.pop(0))
+        if address == TEMPERATURE_ACT and self.temperature_reads:
+            return bytes(self.temperature_reads.pop(0))
+        return self.byte_values[address]
+
     def write_holding(self, address: int, values: tuple[int, ...]) -> None:
         self.writes.append((address, tuple(values)))
         self.events.append(("write", address, tuple(values)))
@@ -81,13 +98,13 @@ class InterleavingProbeClient(FakeClient):
         self._fault_reads = 0
         self._fault_reads_lock = threading.Lock()
 
-    def read_holding(self, address: int, count: int) -> tuple[int, ...]:
+    def read_bytes(self, address: int, byte_count: int) -> bytes:
         if address != FAULT_ACT:
-            return super().read_holding(address, count)
+            return super().read_bytes(address, byte_count)
         with self._fault_reads_lock:
             fault_read_number = self._fault_reads
             self._fault_reads += 1
-        result = super().read_holding(address, count)
+        result = super().read_bytes(address, byte_count)
         if fault_read_number == 0:
             self.first_fault_seen.set()
             self.release_first_fault.wait(timeout=1)
@@ -97,8 +114,9 @@ class InterleavingProbeClient(FakeClient):
 
 
 class RH56E2HandReadTests(unittest.TestCase):
-    def test_read_telemetry_returns_immutable_six_channel_snapshot(self) -> None:
-        hand = RH56E2Hand("192.0.2.10", client=FakeClient())
+    def test_read_telemetry_decodes_packed_six_byte_channels(self) -> None:
+        client = FakeClient()
+        hand = RH56E2Hand("192.0.2.10", client=client)
         hand.connect()
 
         sample = hand.read_telemetry()
@@ -109,7 +127,11 @@ class RH56E2HandReadTests(unittest.TestCase):
         self.assertEqual(sample.current, (10, 11, 12, 13, 14, 15))
         self.assertEqual(sample.fault, (0, 0, 0, 0, 0, 0))
         self.assertEqual(sample.state, (20, 21, 22, 23, 24, 25))
-        self.assertEqual(sample.temperature, (30, 31, 32, 33, 34, 35))
+        self.assertEqual(sample.temperature, (25, 25, 25, 25, 25, 25))
+        self.assertEqual(
+            client.byte_reads,
+            [(FAULT_ACT, 6), (STATE_ACT, 6), (TEMPERATURE_ACT, 6)],
+        )
         with self.assertRaises(dataclasses.FrozenInstanceError):
             sample.angle = ()
 
@@ -209,7 +231,7 @@ class RH56E2HandWriteTests(unittest.TestCase):
                 self.assertEqual(client.reads, [])
                 self.assertEqual(client.writes, [])
 
-    def test_valid_commands_refresh_health_immediately_before_writing(self) -> None:
+    def test_both_guarded_write_paths_read_packed_byte_health_before_writing(self) -> None:
         client = FakeClient()
         hand = connected_hand(client=client, write_enabled=True)
 
@@ -226,11 +248,11 @@ class RH56E2HandWriteTests(unittest.TestCase):
         self.assertEqual(
             client.events,
             [
-                ("read", FAULT_ACT, 6),
-                ("read", TEMPERATURE_ACT, 6),
+                ("read_bytes", FAULT_ACT, 6),
+                ("read_bytes", TEMPERATURE_ACT, 6),
                 ("write", SPEED_SET, (600, 600, 600, 600, 600, 600)),
-                ("read", FAULT_ACT, 6),
-                ("read", TEMPERATURE_ACT, 6),
+                ("read_bytes", FAULT_ACT, 6),
+                ("read_bytes", TEMPERATURE_ACT, 6),
                 ("write", ANGLE_SET, (-1, 0, 250, 500, 750, 1000)),
             ],
         )
@@ -280,13 +302,13 @@ class RH56E2HandWriteTests(unittest.TestCase):
         self.assertFalse(position_thread.is_alive())
         self.assertEqual(errors, [])
         speed_transaction = [
-            ("read", FAULT_ACT, 6),
-            ("read", TEMPERATURE_ACT, 6),
+            ("read_bytes", FAULT_ACT, 6),
+            ("read_bytes", TEMPERATURE_ACT, 6),
             ("write", SPEED_SET, (400, 400, 400, 400, 400, 400)),
         ]
         position_transaction = [
-            ("read", FAULT_ACT, 6),
-            ("read", TEMPERATURE_ACT, 6),
+            ("read_bytes", FAULT_ACT, 6),
+            ("read_bytes", TEMPERATURE_ACT, 6),
             ("write", ANGLE_SET, (500, 500, 500, 500, 500, 500)),
         ]
         self.assertIn(client.events, [speed_transaction + position_transaction, position_transaction + speed_transaction])

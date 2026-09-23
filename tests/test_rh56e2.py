@@ -17,8 +17,8 @@ import teleopit.sim2real.hands  # noqa: E402
 
 teleopit.sim2real.hands.__path__.insert(0, str(ROOT / "overlay" / "teleopit" / "sim2real" / "hands"))
 
-from teleopit.sim2real.hands.rh56e2 import parse_rh56e2_config, radians_to_raw
-from teleopit.sim2real.hands.rh56e2_protocol import (
+from teleopit.sim2real.hands.rh56e2 import parse_rh56e2_config, radians_to_raw  # noqa: E402
+from teleopit.sim2real.hands.rh56e2_protocol import (  # noqa: E402
     ModbusProtocolError,
     build_read_frame,
     build_write_frame,

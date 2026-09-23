@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+import time
 import unittest
 import warnings
 from pathlib import Path
@@ -52,6 +53,20 @@ class LegacyProtocolCompatibilityTests(unittest.TestCase):
 
 
 class TeleopitDelegationTests(unittest.TestCase):
+    @staticmethod
+    def _device(*, write_enabled: bool):
+        from teleopit.sim2real.hands.rh56e2 import Rh56e2Device, parse_rh56e2_config
+
+        config = parse_rh56e2_config(
+            {
+                "hands": {
+                    "sides": ["left"],
+                    "rh56e2": {"left_host": "192.168.11.210", "write_enabled": write_enabled},
+                }
+            }
+        )
+        return Rh56e2Device(config)
+
     def test_send_pose_delegates_to_sdk_hand_positions(self) -> None:
         from teleopit.sim2real.hands.rh56e2 import Rh56e2Device, parse_rh56e2_config
 
@@ -74,12 +89,33 @@ class TeleopitDelegationTests(unittest.TestCase):
             temperature=(25, 25, 25, 25, 25, 25),
         )
         with patch("teleopit.sim2real.hands.rh56e2.RH56E2Hand") as hand_class:
+            hand_class.validate_positions.side_effect = tuple
             hand_class.return_value.read_telemetry.return_value = telemetry
             device = Rh56e2Device(config)
             device.connect()
             device.send_pose("left", (100, 200, 300, 400, 500, 600), force=True)
 
         hand_class.return_value.set_positions.assert_called_once_with((100, 200, 300, 400, 500, 600))
+
+    def test_invalid_pose_is_rejected_even_when_writes_are_disabled(self) -> None:
+        device = self._device(write_enabled=False)
+
+        with self.assertRaises(TypeError):
+            device.send_pose("left", (500.5,) * 6)
+
+    def test_invalid_pose_is_rejected_before_rate_limit_suppression(self) -> None:
+        device = self._device(write_enabled=True)
+        device._last_write_s["left"] = time.monotonic()
+
+        with self.assertRaises(TypeError):
+            device.send_pose("left", (500.5,) * 6)
+
+    def test_invalid_pose_is_rejected_before_minimum_change_suppression(self) -> None:
+        device = self._device(write_enabled=True)
+        device._last_pose["left"] = (500,) * 6
+
+        with self.assertRaises(TypeError):
+            device.send_pose("left", (500.5,) * 6)
 
 
 if __name__ == "__main__":

@@ -158,9 +158,7 @@ class Rh56e2Device(HandDevice):
         return tuple(float(value) for value in self._hand(side).read_telemetry().angle)
 
     def send_pose(self, side: str, pose: Sequence[int], *, force: bool = False, reason: str = "") -> None:
-        values = tuple(pose)
-        if len(values) != 6:
-            raise ValueError(f"RH56E2 pose must contain six values, got {len(values)}")
+        values = RH56E2Hand.validate_positions(pose)
         if not self.config.write_enabled:
             logger.debug("RH56E2 %s dry-run pose=%s reason=%s", side, values, reason)
             return
