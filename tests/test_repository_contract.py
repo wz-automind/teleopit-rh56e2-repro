@@ -16,7 +16,7 @@ class RepositoryContractTests(unittest.TestCase):
         install_text = (ROOT / "scripts" / "install.sh").read_text(encoding="utf-8")
         validate_text = (ROOT / "scripts" / "validate.sh").read_text(encoding="utf-8")
 
-        self.assertIn('pip install -e "$ROOT_DIR" --no-deps', install_text)
+        self.assertIn('pip install --no-build-isolation -e "$ROOT_DIR" --no-deps', install_text)
         self.assertIn("from teleopit_rh56e2.sdk import RH56E2Hand", validate_text)
 
     def test_sdk_uses_src_package_discovery_without_extra_runtime_dependencies(self):

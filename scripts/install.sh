@@ -76,7 +76,7 @@ printf '%s\n' "$SOMEHAND_COMMIT" > "$SOMEHAND_DIR/.rh56e2-overlay"
 "$TELEOPIT_PYTHON" -m pip install --upgrade pip setuptools wheel
 "$TELEOPIT_PYTHON" -m pip install -e "$TELEOPIT_DIR[pico4]"
 "$TELEOPIT_PYTHON" -m pip install -e "$SOMEHAND_DIR"
-"$TELEOPIT_PYTHON" -m pip install -e "$ROOT_DIR" --no-deps
+"$TELEOPIT_PYTHON" -m pip install --no-build-isolation -e "$ROOT_DIR" --no-deps
 
 if [[ "$SKIP_ASSETS" -eq 0 ]]; then
   (
