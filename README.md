@@ -48,12 +48,21 @@ The upstream versions are fixed in [`manifest.json`](manifest.json). Integration
 
 Ubuntu/Linux with Python 3.10 or 3.11 is recommended.
 
+Create the Miniforge environment once:
+
 ```bash
+source /home/unitree/miniforge3/bin/activate
+conda create -n teleopit python=3.11 -y
+```
+
+Then install and run with that same environment:
+
+```bash
+source /home/unitree/miniforge3/bin/activate teleopit
 git clone https://github.com/wz-automind/teleopit-rh56e2-repro.git
 cd teleopit-rh56e2-repro
 bash scripts/setup/install.sh --profile sim --download-pico-apk
 cd ~/Teleopit
-source .venv/bin/activate
 python scripts/run/run_sim_rh56e2.py \
   --config-name pico4_sim_rh56e2 \
   controller.policy_path=ckpt/track_g1.onnx
@@ -86,4 +95,3 @@ or [Chinese usage guide](docs/USAGE.zh-CN.md#15-完整-g1--rh56e2-真机测试).
 ## Hardware status
 
 The protocol, mapping, configuration, and safety interlocks are covered by deterministic source tests. The repository has not physically accepted your exact G1, two RH56E2 hands, power supply, network, firmware, payload, or emergency-stop setup. Complete the staged procedure in the usage guide before enabling writes.
-

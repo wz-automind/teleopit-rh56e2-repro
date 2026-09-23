@@ -4,7 +4,7 @@
 
 `manifest.json` 是机器可读的事实来源。当前集成面向 Teleopit v0.5.0、somehand 0.3.0 和 pico-bridge v0.2.1。Teleopit 与 somehand 使用完整 commit SHA 固定；pico-bridge wheel/APK 使用版本和 SHA-256 固定。
 
-## 版本新鲜度检查（2026-09-22）
+## 版本新鲜度检查（2026-09-23）
 
 - Teleopit `v0.5.0` 是最新正式版，固定提交与当前 `master` 相同。
 - somehand `v0.3.0` 是最新正式版；当前 `master` 另有 9 个未发布提交并包含接口删改，因此在完成兼容性验证前不跟随 `master`。
@@ -39,4 +39,3 @@
 不能只改版本号就声称组合兼容。静态测试和物理验收是两类独立证据。
 
 [架构与数据流](architecture.md) · [第三方组件](../../../THIRD_PARTY.md)
-

@@ -7,7 +7,7 @@ targets Teleopit v0.5.0, somehand 0.3.0, and pico-bridge v0.2.1. Teleopit and
 somehand are pinned by full commit SHA; released pico-bridge wheel/APK artifacts
 are pinned by version and SHA-256.
 
-## Freshness audit (2026-09-22)
+## Freshness audit (2026-09-23)
 
 - Teleopit `v0.5.0` is the latest stable release, and the pinned commit is
   identical to the current `master`.
@@ -55,4 +55,3 @@ Do not update a version number alone and call the combination compatible. Static
 tests and physical acceptance are separate evidence.
 
 [Architecture](architecture.md) · [Third-party components](../../../THIRD_PARTY.md)
-

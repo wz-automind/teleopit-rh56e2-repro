@@ -178,7 +178,19 @@ class UsageGuideTests(unittest.TestCase):
             with self.subTest(forbidden=fragment):
                 self.assertNotIn(fragment, text)
 
+    def test_operator_docs_use_one_miniforge_environment(self):
+        paths = (ROOT / "README.md", QUICK_GUIDE, *DOCS)
+        required = (
+            "source /home/unitree/miniforge3/bin/activate teleopit",
+            "conda create -n teleopit python=3.11",
+        )
+        for path in paths:
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(path=path.name):
+                self.assertNotIn(".venv", text)
+                for fragment in required:
+                    self.assertIn(fragment, text)
+
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -19,9 +19,11 @@
 - Replaced the stale Chinese installation note with a current quick-start,
   aligned every concrete G1 hardware example to `eth1`, and recorded an
   upstream-release freshness audit without adopting unreleased commits.
+- Standardized installation, validation, simulation, and hardware launchers on
+  the activated Miniforge `teleopit` environment; corrected the guarded
+  launcher's `eth1` default and shared RH56E2 port override.
 
 ## 0.1.0 - 2026-09-20
 
 - Added pinned upstream installation, G1 + RH56E2 simulation assets, PICO hand
   retargeting, guarded Modbus TCP hardware control, and staged hardware guides.
-
