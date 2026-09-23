@@ -276,6 +276,35 @@ Proceed only after the G1 can enter and leave the standing state reliably.
 
 ## 15. Full G1 + RH56E2 hardware test
 
+`~/Teleopit` is the runtime checkout and includes the E2 overlay installed by
+this repository. `~/teleopit-rh56e2-repro` contains installation, read-only
+checks, and guarded launchers. Entering `Teleopit` does not mean that dexterous
+hand support is absent; selecting `pico4_sim2real_rh56e2` enables it.
+
+### Onboard operation (currently verified deployment)
+
+The verified deployment uses `eth1` on the Unitree host, host address
+`192.168.123.164`, left and right E2 endpoints `192.168.123.210:6000` and
+`192.168.123.211:6000`, and the PICO-reachable host Wi-Fi address
+`192.168.50.62`. Run the read-only check first, then explicitly enable both
+hardware gates:
+
+```bash
+source /home/unitree/miniforge3/bin/activate teleopit
+cd ~/teleopit-rh56e2-repro
+bash scripts/dev/check_unitree_g1_rh56e2.sh
+
+ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
+  bash scripts/run/run_unitree_g1_rh56e2.sh
+```
+
+Every value remains overridable through its named environment variable, so the
+repository is not tied to this network. For example, set `LEFT_HAND_IP` and
+`RIGHT_HAND_IP` after changing hand addresses, or `PICO_ADVERTISE_IP` after
+moving the PICO link to another Wi-Fi network.
+
+### Generic direct commands
+
 Start the PICO app and confirm stable tracking. On the deployed Unitree host,
 activate the existing `teleopit` Conda environment and enter the Teleopit
 checkout. The unchanged upstream command controls the whole body without the
@@ -331,15 +360,56 @@ bash scripts/run/run_sim2real_rh56e2.sh \
 
 The entry point repeats the hardware preflight and stops on missing confirmations, duplicate addresses, or telemetry failures. Keep the robot unloaded and restrict motion range on the first run.
 
+### External-host operation
+
+An external host needs a wired interface that directly reaches the robot
+switch (for example `enp4s0`) and a unique `192.168.123.x/24` address. Wi-Fi
+may carry SSH and PICO traffic, but it does not replace the wired G1/E2 robot
+link. After the external host can reach `192.168.123.164`,
+`192.168.123.210:6000`, and `192.168.123.211:6000`, override the generic
+launcher with the actual host values:
+
+```bash
+cd ~/teleopit-rh56e2-repro
+ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
+NETWORK_INTERFACE=enp4s0 \
+G1_HOST_IP=192.168.123.164 \
+LEFT_HAND_IP=192.168.123.210 RIGHT_HAND_IP=192.168.123.211 \
+PICO_ADVERTISE_IP=<external-host-Wi-Fi-IP> \
+bash scripts/run/run_unitree_g1_rh56e2.sh
+```
+
+`g1_host_cli`, `run_sim2real.py`, the onboard launcher, and an external-host
+launcher contend for the same G1 control channel. Only one control process may
+run at a time. SSH only opens a remote shell; it does not select the interface
+used for robot control.
+
 ## 16. State transitions and stopping
 
 - `Start`: enter `STANDING`.
 - `Y`: enter `MOCAP` teleoperation from standing.
 - `X`: return to `STANDING`.
+- `Q`: exit the process normally.
 - `B` or PICO `A`: pause/resume.
 - `L1 + R1`: enter the emergency `DAMPING` state.
 
 Test pause and exit before increasing motion. Stop immediately on tracking loss, abnormal vibration, wrong joint direction, a latency spike, over-temperature, or a fault code. Use the hardware emergency stop/remove power when necessary; do not rely only on software buttons.
+
+`Ctrl+C` only sends an interrupt from the current terminal. It can appear to do
+nothing when the terminal lacks focus, raw keyboard input is active, or the
+process is not in the foreground. First press `X` to return to standing and
+then `Q`. If it still does not exit, inspect and signal it from a second SSH
+terminal:
+
+```bash
+pgrep -af 'g1_host_cli|run_sim2real|run_real|standalone_standing'
+pkill -INT -f 'scripts/run/run_sim2real.py'
+# Only if it is still present after inspection:
+pkill -TERM -f 'scripts/run/run_sim2real.py'
+```
+
+Keep the hardware emergency stop available throughout. For abnormal motion,
+use the hardware stop immediately rather than waiting for terminal input.
 
 ## 17. Post-run checks
 
@@ -352,10 +422,12 @@ After stopping control, rerun the dual-hand read-only preflight from section 13 
 | Missing model, policy, or configuration | Rerun `scripts/setup/install.sh` without `--skip-assets`, then run `scripts/dev/validate.sh` |
 | `ModuleNotFoundError` | Confirm `CONDA_DEFAULT_ENV=teleopit` and that `which python` points into Miniforge; rerun the appropriate profile installation if needed |
 | RH56E2 timeout | Check power, static IP, subnet, port 6000, firewall, and Unit ID |
+| `.11.210/.11.211` time out | `.11.x` is a generic example; the verified deployment uses `.123.210/.123.211`. Run `check_unitree_g1_rh56e2.sh` first |
 | Only one of two hands connects | Power separately and verify addresses; remove duplicate IPs before reconnecting both |
 | Nonzero fault bytes/high temperature | Stop writes and power troubleshooting; follow the vendor manual instead of forcing operation after a software reset |
 | No G1 LowState | Check interface name, G1 mode, physical link, and `g1_bridge_sdk` |
 | PICO pose jumps/drops | Check subnet, Wi-Fi quality, app host address, and tracking environment; keep writes disabled |
+| `Ctrl+C` has no effect | Stop hardware first and try `X`, `Q`; then use `pgrep` in a second terminal to identify the exact process before sending `INT`/`TERM` |
 
 ## 19. Command reference
 
@@ -370,6 +442,9 @@ bash scripts/setup/install.sh --profile real
 python scripts/dev/check_rh56e2.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
 # Full hardware entry point (only after all staged acceptance checks pass)
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 NETWORK_INTERFACE=eth1 bash scripts/run/run_sim2real_rh56e2.sh
+# Verified Unitree onboard deployment: read-only check / guarded launch
+bash scripts/dev/check_unitree_g1_rh56e2.sh
+ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES bash scripts/run/run_unitree_g1_rh56e2.sh
 ```
 
 See [Hardware Control Review](真机控制检查.md) for protocol details, register mappings, model mappings, and outstanding physical acceptance work.

@@ -151,6 +151,29 @@ class UsageGuideTests(unittest.TestCase):
             ):
                 self.assertNotIn(stale_interface, text)
 
+    def test_guides_document_verified_onboard_and_external_host_topologies(self):
+        shared = (
+            "192.168.123.164",
+            "192.168.123.210",
+            "192.168.123.211",
+            "scripts/dev/check_unitree_g1_rh56e2.sh",
+            "scripts/run/run_unitree_g1_rh56e2.sh",
+            "g1_host_cli",
+            "Ctrl+C",
+        )
+        for path in DOCS:
+            text = path.read_text(encoding="utf-8")
+            for fragment in shared:
+                with self.subTest(path=path.name, fragment=fragment):
+                    self.assertIn(fragment, text)
+
+        chinese = DOCS[0].read_text(encoding="utf-8")
+        english = DOCS[1].read_text(encoding="utf-8")
+        for fragment in ("机载运行", "外部主机运行", "同一时间只能有一个"):
+            self.assertIn(fragment, chinese)
+        for fragment in ("Onboard operation", "External-host operation", "Only one"):
+            self.assertIn(fragment, english)
+
     def test_chinese_quick_guide_points_to_current_commands(self):
         text = QUICK_GUIDE.read_text(encoding="utf-8")
         required = (

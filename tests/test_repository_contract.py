@@ -41,10 +41,40 @@ class RepositoryContractTests(unittest.TestCase):
             "scripts/dev/bench_rh56e2.py",
             "scripts/run/run_sim_rh56e2.sh",
             "scripts/run/run_sim2real_rh56e2.sh",
+            "scripts/dev/check_unitree_g1_rh56e2.sh",
+            "scripts/run/run_unitree_g1_rh56e2.sh",
         )
         for relative in paths:
             with self.subTest(path=relative):
                 self.assertTrue((ROOT / relative).is_file())
+
+    def test_verified_unitree_deployment_entry_points_use_observed_network(self):
+        check = (ROOT / "scripts" / "dev" / "check_unitree_g1_rh56e2.sh").read_text(
+            encoding="utf-8"
+        )
+        launch = (ROOT / "scripts" / "run" / "run_unitree_g1_rh56e2.sh").read_text(
+            encoding="utf-8"
+        )
+        required = (
+            "192.168.123.164",
+            "192.168.123.210",
+            "192.168.123.211",
+            "192.168.50.62",
+            "eth1",
+            "6000",
+        )
+        for fragment in required:
+            with self.subTest(script="check", fragment=fragment):
+                self.assertIn(fragment, check)
+            with self.subTest(script="launch", fragment=fragment):
+                self.assertIn(fragment, launch)
+
+        self.assertIn("--hardware", check)
+        self.assertNotIn("write_enabled=true", check)
+        self.assertIn('exec env', launch)
+        self.assertIn('ENABLE_G1_REAL="${ENABLE_G1_REAL:-}"', launch)
+        self.assertIn('ENABLE_RH56E2_WRITES="${ENABLE_RH56E2_WRITES:-}"', launch)
+        self.assertIn('input.bridge_advertise_ip=$PICO_ADVERTISE_IP', launch)
 
     def test_shell_launchers_preserve_arguments_and_exit_codes(self):
         for relative in (

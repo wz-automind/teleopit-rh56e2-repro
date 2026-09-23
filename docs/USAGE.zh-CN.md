@@ -261,6 +261,33 @@ python scripts/run/standalone_standing.py \
 
 ## 15. 完整 G1 + RH56E2 真机测试
 
+`~/Teleopit` 是实际运行目录，已经包含本仓库安装进去的 E2 覆盖层；
+`~/teleopit-rh56e2-repro` 是安装、只读检查和受保护启动入口。进入
+`Teleopit` 并不表示“没有灵巧手”，是否控制 E2 由
+`pico4_sim2real_rh56e2` 配置决定。
+
+### 机载运行（当前已验证部署）
+
+当前部署参数为：Unitree 主机/G1 控制网卡 `eth1`，主机地址
+`192.168.123.164`，左、右 E2 分别为 `192.168.123.210:6000` 和
+`192.168.123.211:6000`，PICO 可访问的主机 Wi-Fi 地址为
+`192.168.50.62`。先运行只读检查，再显式打开两道真机确认：
+
+```bash
+source /home/unitree/miniforge3/bin/activate teleopit
+cd ~/teleopit-rh56e2-repro
+bash scripts/dev/check_unitree_g1_rh56e2.sh
+
+ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
+  bash scripts/run/run_unitree_g1_rh56e2.sh
+```
+
+脚本参数仍可通过同名环境变量覆盖，因此不会把仓库限制为这一套网络。例如改过
+手地址时，可在命令前设置 `LEFT_HAND_IP`、`RIGHT_HAND_IP`；改过 PICO 所在
+Wi-Fi 时可设置 `PICO_ADVERTISE_IP`。
+
+### 通用直接命令
+
 先启动 PICO 应用并确认跟踪稳定。在 Unitree 主机上激活已有的 `teleopit`
 Conda 环境并进入 Teleopit 目录。不带灵巧手的全身遥操仍使用原 Teleopit 命令：
 
@@ -312,15 +339,51 @@ bash scripts/run/run_sim2real_rh56e2.sh \
 
 入口会再次运行真机预检，缺少任一确认、地址重复或遥测异常时停止。首次运行保持机器人无负载并限制动作范围。
 
+### 外部主机运行
+
+外部主机必须有一块能直达机器人交换网络的有线网卡（例如 `enp4s0`），并为它
+配置一个不冲突的 `192.168.123.x/24` 地址；Wi-Fi 只能用于 SSH 或 PICO 数据，
+不能代替 G1/E2 的机器人侧有线链路。确认外部主机可以访问
+`192.168.123.164`、`192.168.123.210:6000` 和
+`192.168.123.211:6000` 后，按实际地址覆盖通用入口：
+
+```bash
+cd ~/teleopit-rh56e2-repro
+ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
+NETWORK_INTERFACE=enp4s0 \
+G1_HOST_IP=192.168.123.164 \
+LEFT_HAND_IP=192.168.123.210 RIGHT_HAND_IP=192.168.123.211 \
+PICO_ADVERTISE_IP=<外部主机的-Wi-Fi-IP> \
+bash scripts/run/run_unitree_g1_rh56e2.sh
+```
+
+`g1_host_cli`、`run_sim2real.py`、机载启动器和外部主机启动器都会争用同一套
+G1 控制通道；同一时间只能有一个控制进程。SSH 只是远程打开终端，不会改变
+控制数据使用哪块网卡。
+
 ## 16. 状态切换与停止
 
 - `Start`：进入 `STANDING`。
 - `Y`：从站立进入 `MOCAP` 遥操作。
 - `X`：返回 `STANDING`。
+- `Q`：正常退出进程。
 - `B` 或 PICO `A`：暂停/恢复。
 - `L1 + R1`：进入 `DAMPING` 紧急停止状态。
 
 先验证暂停和退出，再扩大动作。出现跟踪丢失、异常振动、关节方向错误、网络延迟突增、过温或故障码时立即停止；需要时使用硬件急停/断电，不能只依赖软件按键。
+
+`Ctrl+C` 只是在当前终端发送中断；终端没有焦点、程序使用原始键盘输入或进程
+不在前台时可能看起来没有反应。先按 `X` 返回站立，再按 `Q`。仍无法退出时，
+在另一个 SSH 终端中先查看进程，再依次发送中断和终止信号：
+
+```bash
+pgrep -af 'g1_host_cli|run_sim2real|run_real|standalone_standing'
+pkill -INT -f 'scripts/run/run_sim2real.py'
+# 确认仍未退出后再使用：
+pkill -TERM -f 'scripts/run/run_sim2real.py'
+```
+
+处理软件进程前后都要确保硬件急停可用；异常运动时先用硬件急停，不要等待终端响应。
 
 ## 17. 运行后检查
 
@@ -333,10 +396,12 @@ bash scripts/run/run_sim2real_rh56e2.sh \
 | 缺少模型、策略或配置 | 重跑 `scripts/setup/install.sh`（不要加 `--skip-assets`），再运行 `scripts/dev/validate.sh` |
 | `ModuleNotFoundError` | 确认 `CONDA_DEFAULT_ENV=teleopit` 且 `which python` 指向 Miniforge 环境，必要时重跑相应 profile 安装 |
 | RH56E2 超时 | 检查电源、静态 IP、子网、6000 端口、防火墙和 Unit ID |
+| 按 `.11.210/.11.211` 超时 | `.11.x` 只是通用示例；当前已验证部署使用 `.123.210/.123.211`，先运行 `check_unitree_g1_rh56e2.sh` |
 | 双手只能连一只 | 分别上电核对地址；消除重复 IP 后再同时接入 |
 | 故障字节非零/温度过高 | 停止写入和上电排查，按厂商手册处理，不要软件清故障后强行运行 |
 | 收不到 G1 LowState | 检查网卡名、G1 模式、物理链路和 `g1_bridge_sdk` |
 | PICO 姿态跳变/丢失 | 检查同网段、无线质量、PICO 应用地址和跟踪环境，保持写入关闭 |
+| `Ctrl+C` 没反应 | 先硬件止动并按 `X`、`Q`；再从第二个终端用 `pgrep` 确认目标后发送 `INT`/`TERM` |
 
 ## 19. 命令速查
 
@@ -351,6 +416,9 @@ bash scripts/setup/install.sh --profile real
 python scripts/dev/check_rh56e2.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
 # 完整真机入口（仅在分阶段验收全部通过后）
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 NETWORK_INTERFACE=eth1 bash scripts/run/run_sim2real_rh56e2.sh
+# 当前 Unitree 机载部署：只读检查 / 受保护启动
+bash scripts/dev/check_unitree_g1_rh56e2.sh
+ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES bash scripts/run/run_unitree_g1_rh56e2.sh
 ```
 
 协议、寄存器、模型映射和仍待完成的物理验收见 [真机控制检查](真机控制检查.md)。

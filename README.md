@@ -82,6 +82,20 @@ writes. They are alternatives and must not run at the same time. Copy the exact
 commands and complete the staged checks in the [English usage guide](docs/USAGE.en.md#15-full-g1--rh56e2-hardware-test)
 or [Chinese usage guide](docs/USAGE.zh-CN.md#15-完整-g1--rh56e2-真机测试).
 
+For the verified onboard topology (`eth1`, host `192.168.123.164`, E2 hands
+`192.168.123.210/.211:6000`, PICO-facing IP `192.168.50.62`), use the
+read-only check and guarded launcher:
+
+```bash
+cd ~/teleopit-rh56e2-repro
+bash scripts/dev/check_unitree_g1_rh56e2.sh
+ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
+  bash scripts/run/run_unitree_g1_rh56e2.sh
+```
+
+All addresses and the interface remain configurable through environment
+variables; the usage guides also cover generic and external-host deployments.
+
 ## Documentation
 
 | Topic | English | 中文 |
