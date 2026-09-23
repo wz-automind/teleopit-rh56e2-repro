@@ -1,7 +1,7 @@
 """Public RH56E2 SDK exports."""
 
-from .hand import RH56E2Hand
 from .dual import RH56E2Pair
+from .hand import RH56E2Hand
 from .models import (
     DeviceSafetyError,
     ModbusProtocolError,

@@ -12,6 +12,7 @@ of its upstream projects.
 | From a clean host to simulation and hardware tests | [Complete usage guide](../USAGE.en.md) |
 | Component ownership and runtime request flow | [Architecture](reference/architecture.md) |
 | RH56E2 models, channels, registers, config, and safety | [RH56E2 reference](reference/rh56e2.md) |
+| Standalone read and guarded-write API | [Python SDK reference](reference/sdk.md) |
 | Pinned versions and the upstream update procedure | [Upstream maintenance](reference/upstreams.md) |
 | Static review and outstanding physical checks | [Hardware control review](../真机控制检查.md) |
 | Release history | [Changelog](../../CHANGELOG.md) |
@@ -20,7 +21,7 @@ of its upstream projects.
 
 1. Read the architecture page to understand which project owns each stage.
 2. Follow the complete usage guide through installation and simulation.
-3. Read the RH56E2 reference before connecting hand power or Ethernet.
+3. Read the RH56E2 and Python SDK references before connecting hand power or Ethernet.
 4. Complete every staged hardware check; do not start with full-body control.
 
 ## Support boundary

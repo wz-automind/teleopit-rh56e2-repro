@@ -104,6 +104,7 @@ variables; the usage guides also cover generic and external-host deployments.
 | Complete setup and operation | [Usage guide](docs/USAGE.en.md) | [完整使用手册](docs/USAGE.zh-CN.md) |
 | Architecture and request flow | [Architecture](docs/en/reference/architecture.md) | [架构与数据流](docs/zh/reference/architecture.md) |
 | Inspire RH56E2 / 因时 E2 | [RH56E2 reference](docs/en/reference/rh56e2.md) | [RH56E2 参考](docs/zh/reference/rh56e2.md) |
+| Standalone Python SDK | [SDK reference](docs/en/reference/sdk.md) | [SDK 参考](docs/zh/reference/sdk.md) |
 | Upstream versions and updates | [Upstream maintenance](docs/en/reference/upstreams.md) | [上游维护](docs/zh/reference/upstreams.md) |
 
 ## Hardware status

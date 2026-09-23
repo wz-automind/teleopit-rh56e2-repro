@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, copy, shutil, xml.etree.ElementTree as ET
+
+import argparse
+import copy
+import shutil
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 LEFT_MOUNT_POS = "0.0415 0 0"

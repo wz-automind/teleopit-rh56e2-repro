@@ -1,7 +1,6 @@
 import re
-from pathlib import Path
 import unittest
-
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = (ROOT / "docs" / "USAGE.zh-CN.md", ROOT / "docs" / "USAGE.en.md")
@@ -9,6 +8,34 @@ QUICK_GUIDE = ROOT / "docs" / "安装与运行.md"
 
 
 class UsageGuideTests(unittest.TestCase):
+    def test_sdk_references_are_mirrored_and_indexed(self):
+        english_path = ROOT / "docs" / "en" / "reference" / "sdk.md"
+        chinese_path = ROOT / "docs" / "zh" / "reference" / "sdk.md"
+        english = english_path.read_text(encoding="utf-8")
+        chinese = chinese_path.read_text(encoding="utf-8")
+        required = (
+            "RH56E2Hand",
+            "RH56E2Pair",
+            "read_telemetry",
+            "set_speed",
+            "set_positions",
+            "write_enabled=True",
+            "192.168.123.210",
+            "192.168.123.211",
+        )
+        for fragment in required:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, english)
+                self.assertIn(fragment, chinese)
+
+        for path in (ROOT / "docs" / "en" / "README.md", ROOT / "docs" / "zh" / "README.md"):
+            with self.subTest(path=path):
+                self.assertIn("reference/sdk.md", path.read_text(encoding="utf-8"))
+
+        root_readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("docs/en/reference/sdk.md", root_readme)
+        self.assertIn("docs/zh/reference/sdk.md", root_readme)
+
     def test_guides_have_matching_numbered_structure(self):
         sequences = []
         for path in DOCS:
