@@ -1,6 +1,7 @@
 """Public RH56E2 SDK exports."""
 
 from .hand import RH56E2Hand
+from .dual import RH56E2Pair
 from .models import (
     DeviceSafetyError,
     ModbusProtocolError,
@@ -33,6 +34,7 @@ __all__ = [
     "DeviceSafetyError",
     "RH56E2Telemetry",
     "RH56E2Hand",
+    "RH56E2Pair",
     "RH56E2ModbusClient",
     "ANGLE_SET",
     "SPEED_SET",
