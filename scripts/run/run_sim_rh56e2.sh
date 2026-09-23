@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$ROOT_DIR/scripts/lib/conda_env.sh"
+require_teleopit_conda
+
 TELEOPIT_DIR="${TELEOPIT_DIR:-$HOME/Teleopit}"
-PYTHON="$TELEOPIT_DIR/.venv/bin/python"
 ENTRYPOINT="$TELEOPIT_DIR/scripts/run/run_sim_rh56e2.py"
 
-[[ -x "$PYTHON" ]] || { echo "Missing virtual environment: $PYTHON" >&2; exit 2; }
 [[ -f "$ENTRYPOINT" ]] || { echo "Missing installed RH56E2 simulation entry point: $ENTRYPOINT" >&2; exit 2; }
 
 cd "$TELEOPIT_DIR"
-exec "$PYTHON" "$ENTRYPOINT" "$@"
+exec "$TELEOPIT_PYTHON" "$ENTRYPOINT" "$@"

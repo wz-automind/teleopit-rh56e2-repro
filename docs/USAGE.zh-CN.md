@@ -1,6 +1,6 @@
 # Teleopit + RH56E2 使用手册（中文）
 
-本文从一台干净的 Ubuntu/Linux 主机开始，依次完成 Python 虚拟环境、仿真、RH56E2 只读检查、单手低速测试、G1 站立测试和完整真机联调。命令对应仓库固定的 Teleopit v0.5.0、somehand 0.3.0 和 pico-bridge v0.2.1。
+本文从一台干净的 Ubuntu/Linux 主机开始，依次完成 Miniforge 环境、仿真、RH56E2 只读检查、单手低速测试、G1 站立测试和完整真机联调。命令对应仓库固定的 Teleopit v0.5.0、somehand 0.3.0 和 pico-bridge v0.2.1。
 
 ## 1. 范围与安全边界
 
@@ -16,7 +16,6 @@
 ```text
 teleopit-rh56e2-repro/       本仓库：安装、验证和安全入口
 $HOME/Teleopit/              固定版本的 Teleopit 与覆盖层
-$HOME/Teleopit/.venv/        Python 虚拟环境
 $HOME/Teleopit/third_party/somehand/
 $HOME/Teleopit/ckpt/track_g1.onnx
 ```
@@ -26,7 +25,7 @@ $HOME/Teleopit/ckpt/track_g1.onnx
 ## 3. 前置条件
 
 - Ubuntu 22.04/24.04 或兼容 Linux，x86_64，Python 3.10 或 3.11。
-- `git`、可创建 venv 的 Python、编译工具和网络访问。
+- Miniforge、`git`、Python 编译工具和网络访问。
 - 仿真建议使用带 OpenGL/Vulkan 驱动的独立显卡。
 - 真机需要 Unitree G1、左右 RH56E2、PICO 4 Ultra、可用急停、隔离测试区和有线网卡。
 - RH56E2 使用稳定的 24 V 电源；手册给出的单手最大抓取电流为 4.5 A。
@@ -35,7 +34,7 @@ Ubuntu 基础依赖示例：
 
 ```bash
 sudo apt update
-sudo apt install -y git python3 python3-venv python3-dev build-essential
+sudo apt install -y git python3-dev build-essential
 ```
 
 ## 4. 克隆仓库
@@ -49,25 +48,23 @@ cd teleopit-rh56e2-repro
 默认流程会把 Teleopit 安装到 `~/Teleopit`，把 somehand 安装到
 `~/Teleopit/third_party/somehand`，因此不需要设置路径变量。高级用户如需其它位置，仍可在安装前设置 `TELEOPIT_DIR` 和 `SOMEHAND_DIR`。
 
-## 5. 创建并使用 Python 虚拟环境
+## 5. 创建并使用 Miniforge 环境
 
-安装器会创建 `~/Teleopit/.venv`，不需要手动 `pip install`：
+首次部署时创建 Python 3.11 环境；如果 `teleopit` 已存在，可跳过前两行：
 
 ```bash
+source /home/unitree/miniforge3/bin/activate
+conda create -n teleopit python=3.11 -y
+source /home/unitree/miniforge3/bin/activate teleopit
+
 cd ~/teleopit-rh56e2-repro
 bash scripts/setup/install.sh --profile sim --download-pico-apk
-cd ~/Teleopit
-source .venv/bin/activate
 python -V
 ```
 
-若默认 `python3` 不是 3.10/3.11，可显式指定：
-
-```bash
-bash scripts/setup/install.sh --profile sim --download-pico-apk --python python3.11
-```
-
-安装器会检出固定 commit、复制 overlay、安装可编辑包并下载机器人、GMR、策略和 BVH 资源。
+以后每次打开终端，先运行 `source /home/unitree/miniforge3/bin/activate teleopit`。
+安装器会验证环境名、解释器路径和 Python 版本，然后检出固定 commit、复制
+overlay、安装可编辑包并下载机器人、GMR、策略和 BVH 资源。
 
 ## 6. 配置并安装 PICO 应用
 
@@ -80,7 +77,7 @@ APK 下载到 `downloads/PicoBridge_v0.2.1_20260522_release.apk`，脚本会校�
 ```bash
 cd ~/teleopit-rh56e2-repro
 bash scripts/dev/validate.sh
-~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+python scripts/dev/check_rh56e2.py \
   --teleopit-dir ~/Teleopit --profile sim
 ```
 
@@ -116,7 +113,7 @@ Teleopit 原有的 PICO 仿真命令保持不变：
 
 ```bash
 cd ~/Teleopit
-source .venv/bin/activate
+source /home/unitree/miniforge3/bin/activate teleopit
 python scripts/run/run_sim.py \
   --config-name pico4_sim \
   controller.policy_path=ckpt/track_g1.onnx
@@ -173,13 +170,13 @@ python scripts/run/run_sim_rh56e2.py \
 ```bash
 cd ~/teleopit-rh56e2-repro
 bash scripts/setup/install.sh --profile real
-source ~/Teleopit/.venv/bin/activate
+source /home/unitree/miniforge3/bin/activate teleopit
 ```
 
 不要用另一个 Python 环境运行真机脚本。验证：
 
 ```bash
-~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+python scripts/dev/check_rh56e2.py \
   --teleopit-dir ~/Teleopit --profile real
 ```
 
@@ -202,7 +199,7 @@ ping -c 3 192.168.11.211
 
 ```bash
 cd ~/teleopit-rh56e2-repro
-~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+python scripts/dev/check_rh56e2.py \
   --teleopit-dir ~/Teleopit --profile sim --hardware \
   --left-host 192.168.11.210
 ```
@@ -214,7 +211,7 @@ cd ~/teleopit-rh56e2-repro
 确保手固定牢固、无负载、手指行程内无物体。先用默认只读模式：
 
 ```bash
-~/Teleopit/.venv/bin/python scripts/dev/bench_rh56e2.py \
+python scripts/dev/bench_rh56e2.py \
   --teleopit-dir ~/Teleopit --host 192.168.11.210 \
   --dof index --delta 50
 ```
@@ -222,7 +219,7 @@ cd ~/teleopit-rh56e2-repro
 确认读数无误后，现场人员准备断电/急停，再允许一次动作：
 
 ```bash
-~/Teleopit/.venv/bin/python scripts/dev/bench_rh56e2.py \
+python scripts/dev/bench_rh56e2.py \
   --teleopit-dir ~/Teleopit --host 192.168.11.210 \
   --dof index --delta 50 --speed 50 \
   --write --confirm MOVE_RH56E2
@@ -233,7 +230,7 @@ cd ~/teleopit-rh56e2-repro
 双手地址确认唯一后再同时接入：
 
 ```bash
-~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+python scripts/dev/check_rh56e2.py \
   --teleopit-dir ~/Teleopit --profile real --hardware \
   --left-host 192.168.11.210 --right-host 192.168.11.211
 ```
@@ -246,7 +243,7 @@ cd ~/teleopit-rh56e2-repro
 
 ```bash
 cd ~/Teleopit
-.venv/bin/python scripts/run/standalone_standing.py \
+python scripts/run/standalone_standing.py \
   --policy ckpt/track_g1.onnx \
   --network-interface eth1 \
   --dry-run
@@ -255,7 +252,7 @@ cd ~/Teleopit
 dry-run 正常后，在厂家流程、急停和现场监护到位时去掉 `--dry-run`：
 
 ```bash
-.venv/bin/python scripts/run/standalone_standing.py \
+python scripts/run/standalone_standing.py \
   --policy ckpt/track_g1.onnx \
   --network-interface eth1
 ```
@@ -334,7 +331,7 @@ bash scripts/run/run_sim2real_rh56e2.sh \
 | 现象 | 检查 |
 |---|---|
 | 缺少模型、策略或配置 | 重跑 `scripts/setup/install.sh`（不要加 `--skip-assets`），再运行 `scripts/dev/validate.sh` |
-| `ModuleNotFoundError` | 确认使用 `$TELEOPIT_DIR/.venv/bin/python`，必要时重跑相应 profile 安装 |
+| `ModuleNotFoundError` | 确认 `CONDA_DEFAULT_ENV=teleopit` 且 `which python` 指向 Miniforge 环境，必要时重跑相应 profile 安装 |
 | RH56E2 超时 | 检查电源、静态 IP、子网、6000 端口、防火墙和 Unit ID |
 | 双手只能连一只 | 分别上电核对地址；消除重复 IP 后再同时接入 |
 | 故障字节非零/温度过高 | 停止写入和上电排查，按厂商手册处理，不要软件清故障后强行运行 |
@@ -351,10 +348,9 @@ bash scripts/dev/validate.sh
 # 安装真机组件
 bash scripts/setup/install.sh --profile real
 # 单手只读检查
-$HOME/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
+python scripts/dev/check_rh56e2.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
 # 完整真机入口（仅在分阶段验收全部通过后）
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 NETWORK_INTERFACE=eth1 bash scripts/run/run_sim2real_rh56e2.sh
 ```
 
 协议、寄存器、模型映射和仍待完成的物理验收见 [真机控制检查](真机控制检查.md)。
-

@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$ROOT_DIR/scripts/lib/conda_env.sh"
+
 TELEOPIT_DIR="${TELEOPIT_DIR:-$HOME/Teleopit}"
 SOMEHAND_DIR="${SOMEHAND_DIR:-$TELEOPIT_DIR/third_party/somehand}"
 TELEOPIT_COMMIT="f9263865c581802ad531854b8e547e2403a945f3"
@@ -13,7 +15,6 @@ PROFILE="sim"
 ASSET_SOURCE="modelscope"
 SKIP_ASSETS=0
 DOWNLOAD_APK=0
-PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 usage() {
   cat <<'EOF'
@@ -22,7 +23,6 @@ Usage: scripts/install.sh [options]
   --asset-source modelscope|huggingface
   --skip-assets                   Do not download robot, GMR, checkpoint and BVH assets
   --download-pico-apk             Download and verify pico-bridge v0.2.1 APK
-  --python PATH                   Python used to create TELEOPIT_DIR/.venv
 EOF
 }
 
@@ -32,7 +32,6 @@ while [[ $# -gt 0 ]]; do
     --asset-source) ASSET_SOURCE="$2"; shift 2 ;;
     --skip-assets) SKIP_ASSETS=1; shift ;;
     --download-pico-apk) DOWNLOAD_APK=1; shift ;;
-    --python) PYTHON_BIN="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -40,6 +39,7 @@ done
 
 [[ "$PROFILE" == "sim" || "$PROFILE" == "real" ]] || { echo "Invalid --profile: $PROFILE" >&2; exit 2; }
 [[ "$ASSET_SOURCE" == "modelscope" || "$ASSET_SOURCE" == "huggingface" ]] || { echo "Invalid --asset-source: $ASSET_SOURCE" >&2; exit 2; }
+require_teleopit_conda
 
 clone_at() {
   local dir="$1" repository="$2" commit="$3"
@@ -73,16 +73,14 @@ copy_tree "$ROOT_DIR/overlay/third_party/somehand" "$SOMEHAND_DIR"
 printf '%s\n' "$TELEOPIT_COMMIT" > "$TELEOPIT_DIR/.rh56e2-overlay"
 printf '%s\n' "$SOMEHAND_COMMIT" > "$SOMEHAND_DIR/.rh56e2-overlay"
 
-"$PYTHON_BIN" -m venv "$TELEOPIT_DIR/.venv"
-PYTHON="$TELEOPIT_DIR/.venv/bin/python"
-"$PYTHON" -m pip install --upgrade pip setuptools wheel
-"$PYTHON" -m pip install -e "$TELEOPIT_DIR[pico4]"
-"$PYTHON" -m pip install -e "$SOMEHAND_DIR"
+"$TELEOPIT_PYTHON" -m pip install --upgrade pip setuptools wheel
+"$TELEOPIT_PYTHON" -m pip install -e "$TELEOPIT_DIR[pico4]"
+"$TELEOPIT_PYTHON" -m pip install -e "$SOMEHAND_DIR"
 
 if [[ "$SKIP_ASSETS" -eq 0 ]]; then
   (
     cd "$TELEOPIT_DIR"
-    "$PYTHON" scripts/setup/download_assets.py \
+    "$TELEOPIT_PYTHON" scripts/setup/download_assets.py \
       --source "$ASSET_SOURCE" --only robots gmr ckpt bvh
   )
 fi

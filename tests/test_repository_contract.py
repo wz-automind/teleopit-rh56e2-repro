@@ -78,7 +78,39 @@ class RepositoryContractTests(unittest.TestCase):
             text.find('"hands.rh56e2.write_enabled=true"'),
         )
 
+    def test_install_and_launchers_use_the_active_teleopit_conda_environment(self):
+        helper = (ROOT / "scripts" / "lib" / "conda_env.sh").read_text(encoding="utf-8")
+        for fragment in (
+            "CONDA_DEFAULT_ENV",
+            "CONDA_PREFIX",
+            "teleopit",
+            "source /home/unitree/miniforge3/bin/activate teleopit",
+            "TELEOPIT_PYTHON",
+        ):
+            with self.subTest(helper=fragment):
+                self.assertIn(fragment, helper)
+
+        scripts = (
+            ROOT / "scripts" / "install.sh",
+            ROOT / "scripts" / "validate.sh",
+            ROOT / "scripts" / "run_real.sh",
+            ROOT / "scripts" / "run" / "run_sim_rh56e2.sh",
+        )
+        for path in scripts:
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(path=path.name):
+                self.assertIn("require_teleopit_conda", text)
+                self.assertIn("TELEOPIT_PYTHON", text)
+                self.assertNotIn(".venv", text)
+                self.assertNotIn("-m venv", text)
+
+    def test_real_launcher_uses_current_network_and_hand_port_keys(self):
+        text = (ROOT / "scripts" / "run_real.sh").read_text(encoding="utf-8")
+        self.assertIn('NETWORK_INTERFACE="${NETWORK_INTERFACE:-eth1}"', text)
+        self.assertIn('"hands.rh56e2.port=$HAND_PORT"', text)
+        self.assertNotIn("hands.rh56e2.left_port", text)
+        self.assertNotIn("hands.rh56e2.right_port", text)
+
 
 if __name__ == "__main__":
     unittest.main()
-

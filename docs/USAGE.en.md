@@ -1,6 +1,6 @@
 # Teleopit + RH56E2 Usage Guide (English)
 
-This guide starts with a clean Ubuntu/Linux host and covers the Python virtual environment, simulation, read-only RH56E2 checks, a single-hand low-speed test, G1 standing validation, and the full hardware path. The commands target the pinned Teleopit v0.5.0, somehand 0.3.0, and pico-bridge v0.2.1 revisions in this repository.
+This guide starts with a clean Ubuntu/Linux host and covers the Miniforge environment, simulation, read-only RH56E2 checks, a single-hand low-speed test, G1 standing validation, and the full hardware path. The commands target the pinned Teleopit v0.5.0, somehand 0.3.0, and pico-bridge v0.2.1 revisions in this repository.
 
 ## 1. Scope and safety boundary
 
@@ -17,7 +17,6 @@ The main paths after installation are:
 ```text
 teleopit-rh56e2-repro/       this repository: install, validation, safety entry points
 $HOME/Teleopit/              pinned Teleopit plus the overlay
-$HOME/Teleopit/.venv/        Python virtual environment
 $HOME/Teleopit/third_party/somehand/
 $HOME/Teleopit/ckpt/track_g1.onnx
 ```
@@ -27,7 +26,7 @@ The data flow is PICO body/hand tracking → pico-bridge → Teleopit state mach
 ## 3. Prerequisites
 
 - Ubuntu 22.04/24.04 or compatible Linux, x86_64, Python 3.10 or 3.11.
-- `git`, Python venv support, build tools, and internet access.
+- Miniforge, `git`, Python build tools, and internet access.
 - A discrete GPU with working OpenGL/Vulkan drivers is recommended for simulation.
 - Hardware work requires a Unitree G1, left and right RH56E2 hands, PICO 4 Ultra, a working emergency stop, an isolated test area, and wired networking.
 - Power each RH56E2 from a stable 24 V supply. The manual specifies 4.5 A maximum grasping current per hand. Do not draw power from an unverified G1 connector.
@@ -36,7 +35,7 @@ Example Ubuntu prerequisites:
 
 ```bash
 sudo apt update
-sudo apt install -y git python3 python3-venv python3-dev build-essential
+sudo apt install -y git python3-dev build-essential
 ```
 
 ## 4. Clone the repository
@@ -53,25 +52,26 @@ users may still set `TELEOPIT_DIR` and `SOMEHAND_DIR` before installation. Do
 not point them at another Teleopit checkout with unknown uncommitted changes;
 the installer refuses to overwrite such a checkout.
 
-## 5. Create and use the Python virtual environment
+## 5. Create and use the Miniforge environment
 
-The installer creates `~/Teleopit/.venv`; no manual `pip install` is required:
+Create the Python 3.11 environment on the first deployment. If `teleopit`
+already exists, skip the first two lines:
 
 ```bash
+source /home/unitree/miniforge3/bin/activate
+conda create -n teleopit python=3.11 -y
+source /home/unitree/miniforge3/bin/activate teleopit
+
 cd ~/teleopit-rh56e2-repro
 bash scripts/setup/install.sh --profile sim --download-pico-apk
-cd ~/Teleopit
-source .venv/bin/activate
 python -V
 ```
 
-If the default `python3` is not 3.10/3.11, select one explicitly:
-
-```bash
-bash scripts/setup/install.sh --profile sim --download-pico-apk --python python3.11
-```
-
-The installer checks out pinned commits, copies the overlay, installs editable packages, and downloads robot, GMR, policy, and BVH assets. Do not commit `.venv`, downloaded assets, device credentials, or tokens.
+For later shells, first run `source /home/unitree/miniforge3/bin/activate teleopit`.
+The installer verifies the environment name, interpreter path, and Python
+version before it checks out pinned commits, copies the overlay, installs
+editable packages, and downloads robot, GMR, policy, and BVH assets. Do not
+commit downloaded assets, device credentials, or tokens.
 
 ## 6. Configure and install the PICO app
 
@@ -84,7 +84,7 @@ Confirm that the host sees the PICO before testing a robot. Do not enable hardwa
 ```bash
 cd ~/teleopit-rh56e2-repro
 bash scripts/dev/validate.sh
-~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+python scripts/dev/check_rh56e2.py \
   --teleopit-dir ~/Teleopit --profile sim
 ```
 
@@ -121,7 +121,7 @@ Teleopit's unchanged PICO simulation command is:
 
 ```bash
 cd ~/Teleopit
-source .venv/bin/activate
+source /home/unitree/miniforge3/bin/activate teleopit
 python scripts/run/run_sim.py \
   --config-name pico4_sim \
   controller.policy_path=ckpt/track_g1.onnx
@@ -181,13 +181,13 @@ Return to this repository and add the G1 bridge to the same Teleopit directory:
 ```bash
 cd ~/teleopit-rh56e2-repro
 bash scripts/setup/install.sh --profile real
-source ~/Teleopit/.venv/bin/activate
+source /home/unitree/miniforge3/bin/activate teleopit
 ```
 
 Do not run hardware scripts from a different Python environment. Validate it:
 
 ```bash
-~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+python scripts/dev/check_rh56e2.py \
   --teleopit-dir ~/Teleopit --profile real
 ```
 
@@ -210,7 +210,7 @@ Disconnect the G1 and attach one unloaded hand:
 
 ```bash
 cd ~/teleopit-rh56e2-repro
-~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+python scripts/dev/check_rh56e2.py \
   --teleopit-dir ~/Teleopit --profile sim --hardware \
   --left-host 192.168.11.210
 ```
@@ -222,7 +222,7 @@ Confirm that six angles are readable, every fault byte is zero, and temperatures
 Secure the hand, remove all payload, and keep the finger workspace clear. Start in the default read-only mode:
 
 ```bash
-~/Teleopit/.venv/bin/python scripts/dev/bench_rh56e2.py \
+python scripts/dev/bench_rh56e2.py \
   --teleopit-dir ~/Teleopit --host 192.168.11.210 \
   --dof index --delta 50
 ```
@@ -230,7 +230,7 @@ Secure the hand, remove all payload, and keep the finger workspace clear. Start 
 After checking the readings, have an operator ready to remove power/use the emergency stop, then allow one motion:
 
 ```bash
-~/Teleopit/.venv/bin/python scripts/dev/bench_rh56e2.py \
+python scripts/dev/bench_rh56e2.py \
   --teleopit-dir ~/Teleopit --host 192.168.11.210 \
   --dof index --delta 50 --speed 50 \
   --write --confirm MOVE_RH56E2
@@ -243,7 +243,7 @@ The tool changes one DOF, writes `-1` to hold the other five, and limits the del
 Connect both hands only after confirming unique addresses:
 
 ```bash
-~/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py \
+python scripts/dev/check_rh56e2.py \
   --teleopit-dir ~/Teleopit --profile real --hardware \
   --left-host 192.168.11.210 --right-host 192.168.11.211
 ```
@@ -258,7 +258,7 @@ manufacturer-approved test posture:
 
 ```bash
 cd ~/Teleopit
-.venv/bin/python scripts/run/standalone_standing.py \
+python scripts/run/standalone_standing.py \
   --policy ckpt/track_g1.onnx \
   --network-interface eth1 \
   --dry-run
@@ -267,7 +267,7 @@ cd ~/Teleopit
 After a successful dry-run, remove `--dry-run` only with the manufacturer procedure, emergency stop, and on-site supervision in place:
 
 ```bash
-.venv/bin/python scripts/run/standalone_standing.py \
+python scripts/run/standalone_standing.py \
   --policy ckpt/track_g1.onnx \
   --network-interface eth1
 ```
@@ -350,7 +350,7 @@ After stopping control, rerun the dual-hand read-only preflight from section 13 
 | Symptom | Check |
 |---|---|
 | Missing model, policy, or configuration | Rerun `scripts/setup/install.sh` without `--skip-assets`, then run `scripts/dev/validate.sh` |
-| `ModuleNotFoundError` | Use `$TELEOPIT_DIR/.venv/bin/python`; rerun the appropriate profile installation if needed |
+| `ModuleNotFoundError` | Confirm `CONDA_DEFAULT_ENV=teleopit` and that `which python` points into Miniforge; rerun the appropriate profile installation if needed |
 | RH56E2 timeout | Check power, static IP, subnet, port 6000, firewall, and Unit ID |
 | Only one of two hands connects | Power separately and verify addresses; remove duplicate IPs before reconnecting both |
 | Nonzero fault bytes/high temperature | Stop writes and power troubleshooting; follow the vendor manual instead of forcing operation after a software reset |
@@ -367,10 +367,9 @@ bash scripts/dev/validate.sh
 # Install hardware components
 bash scripts/setup/install.sh --profile real
 # Read-only single-hand check
-$HOME/Teleopit/.venv/bin/python scripts/dev/check_rh56e2.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
+python scripts/dev/check_rh56e2.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
 # Full hardware entry point (only after all staged acceptance checks pass)
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 NETWORK_INTERFACE=eth1 bash scripts/run/run_sim2real_rh56e2.sh
 ```
 
 See [Hardware Control Review](真机控制检查.md) for protocol details, register mappings, model mappings, and outstanding physical acceptance work.
-

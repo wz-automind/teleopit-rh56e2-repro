@@ -350,3 +350,50 @@ caveat.
 
 Run compilation, the complete unit test suite, and Linux CI before merging.
 
+### Task 10: Standardize on the Unitree Miniforge environment
+
+**Files:**
+- Create: `scripts/lib/conda_env.sh`
+- Modify: `scripts/install.sh`
+- Modify: `scripts/validate.sh`
+- Modify: `scripts/run_real.sh`
+- Modify: `scripts/run/run_sim_rh56e2.sh`
+- Modify: `README.md`
+- Modify: `docs/安装与运行.md`
+- Modify: `docs/USAGE.en.md`
+- Modify: `docs/USAGE.zh-CN.md`
+- Modify: `CHANGELOG.md`
+- Test: `tests/test_repository_contract.py`
+- Test: `tests/test_usage_docs.py`
+
+**Interfaces:**
+- Consumes: an activated Conda environment named `teleopit`, exposed through
+  `CONDA_DEFAULT_ENV`, `CONDA_PREFIX`, and its `python` executable.
+- Produces: `TELEOPIT_PYTHON`, the interpreter used consistently by setup,
+  validation, simulation, preflight, and sim2real launchers.
+
+- [x] **Step 1: Add failing environment and launcher contract tests**
+
+Require a shared Conda guard, prohibit `.venv` creation and use in operational
+scripts and operator documentation, set the G1 interface default to `eth1`, and
+use the existing `hands.rh56e2.port` Hydra key.
+
+- [x] **Step 2: Verify the old dual-environment workflow fails**
+
+Run: `python -m unittest tests.test_repository_contract tests.test_usage_docs -v`
+
+Expected: failure because the installer creates `.venv`, launchers use that
+interpreter, documentation still describes it, and the guarded launcher uses
+stale interface/port keys.
+
+- [x] **Step 3: Implement one Conda environment path**
+
+Add `require_teleopit_conda`, install packages with `TELEOPIT_PYTHON`, update
+all operational launchers, and document one-time environment creation plus the
+exact activation command.
+
+- [x] **Step 4: Re-audit and publish**
+
+Scan executable scripts and operator docs for `.venv`, run compilation and all
+unit tests, wait for Linux CI, then merge. No verification step may contact
+hardware.
