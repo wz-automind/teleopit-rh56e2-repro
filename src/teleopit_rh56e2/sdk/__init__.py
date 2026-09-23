@@ -1,6 +1,14 @@
-"""Public RH56E2 SDK protocol exports."""
+"""Public RH56E2 SDK exports."""
 
-from .models import ModbusProtocolError, RH56E2ConnectionError, RH56E2Error
+from .hand import RH56E2Hand
+from .models import (
+    DeviceSafetyError,
+    ModbusProtocolError,
+    RH56E2ConnectionError,
+    RH56E2Error,
+    RH56E2Telemetry,
+    WriteDisabledError,
+)
 from .protocol import (
     ANGLE_ACT,
     ANGLE_SET,
@@ -21,6 +29,10 @@ __all__ = [
     "RH56E2Error",
     "RH56E2ConnectionError",
     "ModbusProtocolError",
+    "WriteDisabledError",
+    "DeviceSafetyError",
+    "RH56E2Telemetry",
+    "RH56E2Hand",
     "RH56E2ModbusClient",
     "ANGLE_SET",
     "SPEED_SET",
