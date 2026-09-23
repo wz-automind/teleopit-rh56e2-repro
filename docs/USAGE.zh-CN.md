@@ -173,7 +173,7 @@ bash scripts/setup/install.sh --profile real
 source /home/unitree/miniforge3/bin/activate teleopit
 ```
 
-不要用另一个 Python 环境运行真机脚本。验证：
+验证：
 
 ```bash
 python scripts/dev/check_rh56e2.py \
