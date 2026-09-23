@@ -22,23 +22,23 @@ class RH56E2Pair:
         self.left.connect()
         try:
             self.right.connect()
-        except BaseException as connect_error:
+        except Exception as connect_error:
             try:
                 self.left.close()
-            except BaseException:
+            except Exception:
                 pass
             raise connect_error
 
     def close(self) -> None:
         """Close both hands, preserving the first close error if any."""
-        first_error: BaseException | None = None
+        first_error: Exception | None = None
         try:
             self.left.close()
-        except BaseException as error:
+        except Exception as error:
             first_error = error
         try:
             self.right.close()
-        except BaseException as error:
+        except Exception as error:
             if first_error is None:
                 first_error = error
         if first_error is not None:

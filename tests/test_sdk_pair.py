@@ -68,6 +68,18 @@ class RH56E2PairTests(unittest.TestCase):
         self.assertEqual(left.close_calls, 1)
         self.assertEqual(right.connect_calls, 1)
 
+    def test_connect_rollback_does_not_swallow_process_control_exceptions(self) -> None:
+        for control_error in (KeyboardInterrupt, SystemExit):
+            with self.subTest(control_error=control_error):
+                left = FakeHand(close_error=control_error())
+                right = FakeHand(host="192.0.2.11", connect_error=ConnectionError("offline"))
+
+                with self.assertRaises(control_error):
+                    RH56E2Pair(left, right).connect()
+
+                self.assertEqual(left.close_calls, 1)
+
+
     def test_context_closes_both_after_exception(self) -> None:
         left = FakeHand()
         right = FakeHand(host="192.0.2.11")
@@ -88,6 +100,18 @@ class RH56E2PairTests(unittest.TestCase):
 
         self.assertEqual(left.close_calls, 1)
         self.assertEqual(right.close_calls, 1)
+
+    def test_close_does_not_swallow_process_control_exceptions(self) -> None:
+        for control_error in (KeyboardInterrupt, SystemExit):
+            with self.subTest(control_error=control_error):
+                left = FakeHand(close_error=RuntimeError("left close failed"))
+                right = FakeHand(host="192.0.2.11", close_error=control_error())
+
+                with self.assertRaises(control_error):
+                    RH56E2Pair(left, right).close()
+
+                self.assertEqual(left.close_calls, 1)
+                self.assertEqual(right.close_calls, 1)
 
     def test_reads_and_writes_preserve_left_right(self) -> None:
         left = FakeHand(sample=telemetry(1))
