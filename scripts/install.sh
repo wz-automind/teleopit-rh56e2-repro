@@ -3,7 +3,6 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT_DIR/scripts/lib/conda_env.sh"
-require_teleopit_conda
 
 TELEOPIT_DIR="${TELEOPIT_DIR:-$HOME/Teleopit}"
 SOMEHAND_DIR="${SOMEHAND_DIR:-$TELEOPIT_DIR/third_party/somehand}"
@@ -40,6 +39,7 @@ done
 
 [[ "$PROFILE" == "sim" || "$PROFILE" == "real" ]] || { echo "Invalid --profile: $PROFILE" >&2; exit 2; }
 [[ "$ASSET_SOURCE" == "modelscope" || "$ASSET_SOURCE" == "huggingface" ]] || { echo "Invalid --asset-source: $ASSET_SOURCE" >&2; exit 2; }
+require_teleopit_conda
 
 clone_at() {
   local dir="$1" repository="$2" commit="$3"
