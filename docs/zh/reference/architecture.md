@@ -51,4 +51,4 @@ scripts/dev/                          验证与受保护工作台工具
 - 手部 worker 失败不会结束 Teleopit 的 G1 进程，但这不代表剩余物理状态一定安全。
 - 除非显式启用 `open_on_shutdown`，退出时不会主动张手。
 
-[RH56E2 参考](rh56e2.md) · [完整使用手册](../../USAGE.zh-CN.md)
+[RH56E2 参考](rh56e2.md) · [完整使用手册](../usage.md)

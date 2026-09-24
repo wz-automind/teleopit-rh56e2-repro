@@ -24,7 +24,13 @@ repository owns the integration between those projects and the Inspire RH56E2
   config, typed dataclass, and fail-fast validation conventions.
 - Follow somehand's mirrored `docs/en` and `docs/zh` documentation layout.
 - Keep the root README as a bilingual landing page with a short quick start;
-  keep detailed procedures under `docs/`.
+  keep detailed procedures in the matching language directory.
+- Keep identical relative Markdown paths below `docs/en` and `docs/zh`.
+- Do not place language-specific Markdown files directly under `docs/`, and do
+  not link an English procedure to a Chinese page or vice versa. Explicit
+  language switches between the two documentation home pages are allowed.
+- Keep maintainer-only design material under `docs/development` and outside
+  the operator navigation.
 - Target Python 3.10+, use explicit type hints for public helpers, pytest for
   tests, and Ruff for deterministic style checks.
 - Keep protocol framing separate from the RH56E2 device/retargeting adapter.
@@ -42,8 +48,11 @@ repository owns the integration between those projects and the Inspire RH56E2
 
 ## Documentation contract
 
-The English document is the source and the Chinese document mirrors its
-meaning and section order. Documentation must cover architecture, upstream
-responsibilities, installation, virtual environments, PICO configuration,
-simulation, staged RH56E2 testing, G1 dry-run/standing, full hardware launch,
-emergency stop, troubleshooting, and upstream update maintenance.
+The English document is the source and the Chinese document at the same
+relative path mirrors its meaning and section order. `usage.md` is the single
+canonical operating guide in each language; `hardware-check.md` keeps the
+source-review and physical-acceptance boundary explicit. Documentation must
+cover architecture, upstream responsibilities, installation, virtual
+environments, PICO configuration, simulation, staged RH56E2 testing, G1
+dry-run/standing, full hardware launch, emergency stop, troubleshooting, and
+upstream update maintenance.

@@ -6,12 +6,12 @@ Teleopit RH56E2 是建立在 Teleopit、somehand 和 pico-bridge 基础上的集
 
 | 主题 | 文档 |
 | --- | --- |
-| 从干净主机到仿真和真机测试 | [完整使用手册](../USAGE.zh-CN.md) |
+| 从干净主机到仿真和真机测试 | [完整使用手册](usage.md) |
 | 组件职责和运行时请求流 | [架构与数据流](reference/architecture.md) |
 | RH56E2 模型、通道、寄存器、配置与安全 | [RH56E2 参考](reference/rh56e2.md) |
 | 独立只读和受保护写入 API | [Python SDK 参考](reference/sdk.md) |
 | 固定版本与上游升级流程 | [上游维护](reference/upstreams.md) |
-| 静态检查与待完成的物理验收 | [真机控制检查](../真机控制检查.md) |
+| 静态检查与待完成的物理验收 | [真机控制检查](hardware-check.md) |
 | 发布历史 | [更新日志](../../CHANGELOG.md) |
 
 ## 推荐阅读顺序

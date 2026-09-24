@@ -447,4 +447,4 @@ bash scripts/dev/check_unitree_g1_rh56e2.sh
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES bash scripts/run/run_unitree_g1_rh56e2.sh
 ```
 
-See [Hardware Control Review](真机控制检查.md) for protocol details, register mappings, model mappings, and outstanding physical acceptance work.
+See [Hardware Control Review](hardware-check.md) for protocol details, register mappings, model mappings, and outstanding physical acceptance work.

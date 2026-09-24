@@ -9,12 +9,12 @@ of its upstream projects.
 
 | Topic | Document |
 | --- | --- |
-| From a clean host to simulation and hardware tests | [Complete usage guide](../USAGE.en.md) |
+| From a clean host to simulation and hardware tests | [Complete usage guide](usage.md) |
 | Component ownership and runtime request flow | [Architecture](reference/architecture.md) |
 | RH56E2 models, channels, registers, config, and safety | [RH56E2 reference](reference/rh56e2.md) |
 | Standalone read and guarded-write API | [Python SDK reference](reference/sdk.md) |
 | Pinned versions and the upstream update procedure | [Upstream maintenance](reference/upstreams.md) |
-| Static review and outstanding physical checks | [Hardware control review](../真机控制检查.md) |
+| Static review and outstanding physical checks | [Hardware control review](hardware-check.md) |
 | Release history | [Changelog](../../CHANGELOG.md) |
 
 ## Recommended reading order

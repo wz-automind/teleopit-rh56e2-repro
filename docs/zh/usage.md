@@ -421,4 +421,4 @@ bash scripts/dev/check_unitree_g1_rh56e2.sh
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES bash scripts/run/run_unitree_g1_rh56e2.sh
 ```
 
-协议、寄存器、模型映射和仍待完成的物理验收见 [真机控制检查](真机控制检查.md)。
+协议、寄存器、模型映射和仍待完成的物理验收见 [真机控制检查](hardware-check.md)。
