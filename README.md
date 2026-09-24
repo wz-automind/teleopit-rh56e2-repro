@@ -79,8 +79,8 @@ and `/home/unitree/Teleopit`. The standard `pico4_sim2real` command runs
 whole-body teleoperation without dexterous hands; the
 `pico4_sim2real_rh56e2` variant adds the two E2 endpoints and enables hand
 writes. They are alternatives and must not run at the same time. Copy the exact
-commands and complete the staged checks in the [English usage guide](docs/USAGE.en.md#15-full-g1--rh56e2-hardware-test)
-or [Chinese usage guide](docs/USAGE.zh-CN.md#15-完整-g1--rh56e2-真机测试).
+commands and complete the staged checks in the [English usage guide](docs/en/usage.md#15-full-g1--rh56e2-hardware-test)
+or [Chinese usage guide](docs/zh/usage.md#15-完整-g1--rh56e2-真机测试).
 
 For the verified onboard topology (`eth1`, host `192.168.123.164`, E2 hands
 `192.168.123.210/.211:6000`, PICO-facing IP `192.168.50.62`), use the
@@ -101,10 +101,11 @@ variables; the usage guides also cover generic and external-host deployments.
 | Topic | English | 中文 |
 | --- | --- | --- |
 | Documentation home | [docs/en/README.md](docs/en/README.md) | [docs/zh/README.md](docs/zh/README.md) |
-| Complete setup and operation | [Usage guide](docs/USAGE.en.md) | [完整使用手册](docs/USAGE.zh-CN.md) |
+| Complete setup and operation | [Usage guide](docs/en/usage.md) | [完整使用手册](docs/zh/usage.md) |
 | Architecture and request flow | [Architecture](docs/en/reference/architecture.md) | [架构与数据流](docs/zh/reference/architecture.md) |
 | Inspire RH56E2 / 因时 E2 | [RH56E2 reference](docs/en/reference/rh56e2.md) | [RH56E2 参考](docs/zh/reference/rh56e2.md) |
 | Standalone Python SDK | [SDK reference](docs/en/reference/sdk.md) | [SDK 参考](docs/zh/reference/sdk.md) |
+| Hardware review and acceptance | [Hardware control review](docs/en/hardware-check.md) | [真机控制检查](docs/zh/hardware-check.md) |
 | Upstream versions and updates | [Upstream maintenance](docs/en/reference/upstreams.md) | [上游维护](docs/zh/reference/upstreams.md) |
 
 ## Hardware status

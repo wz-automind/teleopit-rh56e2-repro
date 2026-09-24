@@ -56,4 +56,4 @@ an unrelated dirty checkout as a validated installation.
 - Hand worker failure is non-critical to Teleopit's G1 process, but does not imply that the remaining physical state is safe.
 - Shutdown does not open the hand unless `open_on_shutdown` is explicitly enabled.
 
-[RH56E2 reference](rh56e2.md) · [Complete usage guide](../../USAGE.en.md)
+[RH56E2 reference](rh56e2.md) · [Complete usage guide](../usage.md)

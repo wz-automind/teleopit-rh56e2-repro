@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Moved all operator documentation into mirrored `docs/en` and `docs/zh`
+  trees, added an English hardware-control review, removed the redundant
+  Chinese quick guide, and added tests for layout symmetry, language-local
+  navigation, and broken relative links.
+- Moved the repository-alignment specification to `docs/development` so
+  maintainer material is separate from the language-specific operator guides.
+
 ## 0.2.0 - 2026-09-22
 
 - Defined the repository as a pinned Teleopit integration distribution built

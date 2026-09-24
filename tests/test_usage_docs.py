@@ -1,10 +1,13 @@
 import re
 import unittest
 from pathlib import Path
+from typing import Optional
+from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parents[1]
-DOCS = (ROOT / "docs" / "USAGE.zh-CN.md", ROOT / "docs" / "USAGE.en.md")
-QUICK_GUIDE = ROOT / "docs" / "安装与运行.md"
+DOCS = (ROOT / "docs" / "zh" / "usage.md", ROOT / "docs" / "en" / "usage.md")
+LANGUAGE_ROOTS = (ROOT / "docs" / "en", ROOT / "docs" / "zh")
+MARKDOWN_LINK_RE = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 
 
 class UsageGuideTests(unittest.TestCase):
@@ -85,8 +88,8 @@ class UsageGuideTests(unittest.TestCase):
 
     def test_readme_links_both_guides(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn("docs/USAGE.en.md", readme)
-        self.assertIn("docs/USAGE.zh-CN.md", readme)
+        self.assertIn("docs/en/usage.md", readme)
+        self.assertIn("docs/zh/usage.md", readme)
         self.assertIn("docs/en/README.md", readme)
         self.assertIn("docs/zh/README.md", readme)
 
@@ -100,6 +103,74 @@ class UsageGuideTests(unittest.TestCase):
             for path in (ROOT / "docs" / "zh").rglob("*.md")
         }
         self.assertEqual(english, chinese)
+
+    def test_language_trees_include_usage_and_hardware_review(self):
+        required = {"README.md", "usage.md", "hardware-check.md"}
+        for root in LANGUAGE_ROOTS:
+            actual = {
+                path.relative_to(root).as_posix()
+                for path in root.rglob("*.md")
+            }
+            with self.subTest(root=root.name):
+                self.assertTrue(required.issubset(actual))
+
+    def test_hardware_reviews_cover_the_same_acceptance_contract(self):
+        required = (
+            "Modbus TCP",
+            "FC03",
+            "FC16",
+            "1486",
+            "1546",
+            "70°C",
+            "192.168.11.210:6000",
+            "write_enabled=true",
+            "usage.md",
+            "reference/rh56e2.md",
+        )
+        for root in LANGUAGE_ROOTS:
+            text = (root / "hardware-check.md").read_text(encoding="utf-8")
+            for fragment in required:
+                with self.subTest(root=root.name, fragment=fragment):
+                    self.assertIn(fragment, text)
+
+    def test_docs_root_has_no_language_specific_markdown(self):
+        root_markdown = sorted(path.name for path in (ROOT / "docs").glob("*.md"))
+        self.assertEqual(root_markdown, [])
+
+    def test_language_docs_do_not_cross_link(self):
+        for language, other in (("en", "zh"), ("zh", "en")):
+            language_root = ROOT / "docs" / language
+            other_root = (ROOT / "docs" / other).resolve()
+            for path in language_root.rglob("*.md"):
+                text = path.read_text(encoding="utf-8")
+                for target in MARKDOWN_LINK_RE.findall(text):
+                    resolved = self._resolve_local_link(path, target)
+                    if resolved is None:
+                        continue
+                    language_switch = (ROOT / "docs" / other / "README.md").resolve()
+                    if path.name == "README.md" and resolved == language_switch:
+                        continue
+                    with self.subTest(path=path, target=target):
+                        try:
+                            resolved.relative_to(other_root)
+                        except ValueError:
+                            pass
+                        else:
+                            self.fail(f"cross-language link: {path} -> {target}")
+
+    def test_all_relative_markdown_links_resolve(self):
+        markdown_files = tuple(
+            path for path in ROOT.rglob("*.md")
+            if ".git" not in path.parts
+        )
+        for path in markdown_files:
+            text = path.read_text(encoding="utf-8")
+            for target in MARKDOWN_LINK_RE.findall(text):
+                resolved = self._resolve_local_link(path, target)
+                if resolved is None:
+                    continue
+                with self.subTest(path=path, target=target):
+                    self.assertTrue(resolved.exists(), f"broken link: {path} -> {target}")
 
     def test_guides_show_upstream_commands_before_e2_extensions(self):
         required = (
@@ -201,35 +272,8 @@ class UsageGuideTests(unittest.TestCase):
         for fragment in ("Onboard operation", "External-host operation", "Only one"):
             self.assertIn(fragment, english)
 
-    def test_chinese_quick_guide_points_to_current_commands(self):
-        text = QUICK_GUIDE.read_text(encoding="utf-8")
-        required = (
-            "[完整中文使用手册](USAGE.zh-CN.md)",
-            "scripts/setup/install.sh",
-            "scripts/run/run_sim_rh56e2.py",
-            "source /home/unitree/miniforge3/bin/activate teleopit",
-            "cd /home/unitree/Teleopit",
-            "--config-name pico4_sim2real ",
-            "--config-name pico4_sim2real_rh56e2 ",
-            "real_robot.network_interface=eth1",
-            "hands.rh56e2.write_enabled=true",
-            "不能同时运行",
-        )
-        forbidden = (
-            "NETWORK_INTERFACE=eth0",
-            "bash scripts/install.sh",
-            "bash scripts/run_real.sh",
-            "9 项 Modbus/映射单元测试",
-        )
-        for fragment in required:
-            with self.subTest(required=fragment):
-                self.assertIn(fragment, text)
-        for fragment in forbidden:
-            with self.subTest(forbidden=fragment):
-                self.assertNotIn(fragment, text)
-
     def test_operator_docs_use_one_miniforge_environment(self):
-        paths = (ROOT / "README.md", QUICK_GUIDE, *DOCS)
+        paths = (ROOT / "README.md", *DOCS)
         required = (
             "source /home/unitree/miniforge3/bin/activate teleopit",
             "conda create -n teleopit python=3.11",
@@ -240,6 +284,16 @@ class UsageGuideTests(unittest.TestCase):
                 self.assertNotIn(".venv", text)
                 for fragment in required:
                     self.assertIn(fragment, text)
+
+    @staticmethod
+    def _resolve_local_link(source: Path, target: str) -> Optional[Path]:
+        target = target.strip().strip("<>")
+        if not target or target.startswith("#") or "://" in target or target.startswith("mailto:"):
+            return None
+        path_text = unquote(target.split("#", 1)[0].split("?", 1)[0])
+        if not path_text:
+            return None
+        return (source.parent / path_text).resolve()
 
 
 if __name__ == "__main__":
