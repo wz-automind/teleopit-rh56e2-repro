@@ -7,7 +7,14 @@ import threading
 from numbers import Integral
 from typing import Sequence
 
-from .models import DeviceSafetyError, RH56E2ConnectionError, RH56E2Telemetry, WriteDisabledError
+from .models import (
+    DeviceSafetyError,
+    RH56E2ConnectionError,
+    RH56E2Telemetry,
+    WriteDisabledError,
+    _RH56E2TypeValidationError,
+    _RH56E2ValueValidationError,
+)
 from .protocol import (
     ANGLE_ACT,
     ANGLE_SET,
@@ -36,14 +43,18 @@ class RH56E2Hand:
         client: RH56E2ModbusClient | None = None,
     ) -> None:
         if not isinstance(write_enabled, bool):
-            raise TypeError(f"write_enabled must be a bool, got {write_enabled!r}")
+            raise _RH56E2TypeValidationError(f"write_enabled must be a bool, got {write_enabled!r}")
         if not isinstance(max_temperature_c, Integral) or isinstance(max_temperature_c, bool):
-            raise TypeError(f"max_temperature_c must be an integer, got {max_temperature_c!r}")
+            raise _RH56E2TypeValidationError(f"max_temperature_c must be an integer, got {max_temperature_c!r}")
+        if not 1 <= max_temperature_c <= 100:
+            raise _RH56E2ValueValidationError(
+                f"max_temperature_c must be in the supported range 1..100, got {max_temperature_c!r}"
+            )
         self.host = str(host)
         self.port = _validate_port(port)
         self.unit_id = _validate_unit_id(unit_id)
         self.timeout = _validate_timeout(timeout)
-        self.write_enabled = write_enabled
+        self._write_enabled = write_enabled
         self.max_temperature_c = int(max_temperature_c)
         self._client = client or RH56E2ModbusClient(
             self.host, self.port, unit_id=self.unit_id, timeout=self.timeout
@@ -55,6 +66,11 @@ class RH56E2Hand:
     def endpoint(self) -> tuple[str, int]:
         """Network endpoint used to reach this hand."""
         return (self.host, self.port)
+
+    @property
+    def write_enabled(self) -> bool:
+        """Whether writes were explicitly enabled when this hand was constructed."""
+        return self._write_enabled
 
     def connect(self) -> None:
         """Connect to the hand. Repeated calls are harmless."""
@@ -101,14 +117,25 @@ class RH56E2Hand:
         """Validate a six-channel position command without device I/O."""
         return _validate_command(values, allow_hold=True)
 
+    @staticmethod
+    def validate_speed(values: Sequence[int]) -> tuple[int, ...]:
+        """Validate a six-channel speed command without device I/O."""
+        return _validate_command(values, allow_hold=False)
+
     def _write_guarded(self, address: int, values: Sequence[int], *, allow_hold: bool) -> None:
         if not self.write_enabled:
             raise WriteDisabledError("RH56E2 writes are disabled; construct with write_enabled=True to permit motion")
-        command = self.validate_positions(values) if allow_hold else _validate_command(values, allow_hold=False)
+        command = self.validate_positions(values) if allow_hold else self.validate_speed(values)
         with self._write_lock:
             self._require_connected()
             self._require_healthy()
             self._client.write_holding(address, command)
+
+    def _require_write_ready(self) -> None:
+        """Check local write opt-in and connection state without device I/O."""
+        if not self.write_enabled:
+            raise WriteDisabledError("RH56E2 writes are disabled; construct with write_enabled=True to permit motion")
+        self._require_connected()
 
     def _require_healthy(self) -> None:
         try:
@@ -144,28 +171,28 @@ def _signed_16(value: int) -> int:
 
 def _validate_port(value: object) -> int:
     if not isinstance(value, Integral) or isinstance(value, bool):
-        raise TypeError(f"port must be an integer, got {value!r}")
+        raise _RH56E2TypeValidationError(f"port must be an integer, got {value!r}")
     parsed = int(value)
     if not 1 <= parsed <= 65535:
-        raise ValueError(f"port must be in 1..65535, got {value!r}")
+        raise _RH56E2ValueValidationError(f"port must be in 1..65535, got {value!r}")
     return parsed
 
 
 def _validate_unit_id(value: object) -> int:
     if not isinstance(value, Integral) or isinstance(value, bool):
-        raise TypeError(f"unit_id must be an integer, got {value!r}")
+        raise _RH56E2TypeValidationError(f"unit_id must be an integer, got {value!r}")
     parsed = int(value)
     if not 0 <= parsed <= 0xFF:
-        raise ValueError(f"unit_id must be in 0..255, got {value!r}")
+        raise _RH56E2ValueValidationError(f"unit_id must be in 0..255, got {value!r}")
     return parsed
 
 
 def _validate_timeout(value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise TypeError(f"timeout must be a finite positive number, got {value!r}")
+        raise _RH56E2TypeValidationError(f"timeout must be a finite positive number, got {value!r}")
     parsed = float(value)
     if not math.isfinite(parsed) or parsed <= 0:
-        raise ValueError(f"timeout must be a finite positive number, got {value!r}")
+        raise _RH56E2ValueValidationError(f"timeout must be a finite positive number, got {value!r}")
     return parsed
 
 
@@ -173,15 +200,15 @@ def _validate_command(values: Sequence[int], *, allow_hold: bool) -> tuple[int, 
     try:
         command = tuple(values)
     except TypeError as exc:
-        raise TypeError("RH56E2 command must be a sequence of exactly six integers") from exc
+        raise _RH56E2TypeValidationError("RH56E2 command must be a sequence of exactly six integers") from exc
     if len(command) != 6:
-        raise ValueError(f"RH56E2 command must contain exactly six values, got {len(command)}")
+        raise _RH56E2ValueValidationError(f"RH56E2 command must contain exactly six values, got {len(command)}")
     for value in command:
         if not isinstance(value, Integral) or isinstance(value, bool):
-            raise TypeError(f"RH56E2 command values must be integers, got {value!r}")
+            raise _RH56E2TypeValidationError(f"RH56E2 command values must be integers, got {value!r}")
         if allow_hold and value == -1:
             continue
         if not 0 <= value <= 1000:
             limit = "-1 or 0..1000" if allow_hold else "0..1000"
-            raise ValueError(f"RH56E2 command values must be in {limit}, got {value!r}")
+            raise _RH56E2ValueValidationError(f"RH56E2 command values must be in {limit}, got {value!r}")
     return tuple(int(value) for value in command)

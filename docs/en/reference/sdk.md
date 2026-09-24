@@ -2,11 +2,12 @@
 
 ## Installation and import
 
-Install this repository into the active Python environment. `--no-deps` keeps
-the pinned Teleopit environment in control of its dependencies.
+Install this repository into the active Python environment.
+`--no-build-isolation --no-deps` keeps the pinned Teleopit environment in
+control of its build and runtime dependencies.
 
 ```bash
-python -m pip install --no-deps -e .
+python -m pip install --no-build-isolation --no-deps -e .
 ```
 
 ```python
@@ -15,6 +16,7 @@ from teleopit_rh56e2.sdk import (
     RH56E2ConnectionError,
     RH56E2Hand,
     RH56E2Pair,
+    RH56E2ValidationError,
     WriteDisabledError,
 )
 ```
@@ -50,7 +52,9 @@ context-manager entry has completed.
 
 Writes are disabled by default. Each `set_speed` or `set_positions` call first
 refreshes fault and temperature telemetry; a nonzero fault, a temperature above
-`max_temperature_c` (default `70`), or unreadable health blocks the command.
+`max_temperature_c` (default `70`, supported configuration range `1..100`), or
+unreadable health blocks the command. The construction-time `write_enabled`
+setting is read-only; create a new hand instance to change it.
 
 ```python
 from teleopit_rh56e2.sdk import RH56E2Hand
@@ -89,6 +93,11 @@ with RH56E2Pair(left, right) as pair:
 both environment-specific addresses may differ. Do not use a pair until each
 hand has passed independent read-only and physical-direction checks.
 
+Pair commands prevalidate both commands and both hands' local write/connection
+state before sending either side. The actual writes are sequential, left then
+right, and are not atomic: a device or network failure on the right can occur
+after the left command has succeeded.
+
 ## Telemetry and limits
 
 `read_telemetry()` returns an immutable `RH56E2Telemetry` snapshot. Its six
@@ -113,6 +122,7 @@ from teleopit_rh56e2.sdk import (
     DeviceSafetyError,
     RH56E2ConnectionError,
     RH56E2Hand,
+    RH56E2ValidationError,
     WriteDisabledError,
 )
 
@@ -125,6 +135,8 @@ except DeviceSafetyError as error:
     raise RuntimeError(f"write blocked by hand health: {error}") from error
 except RH56E2ConnectionError as error:
     raise RuntimeError(f"check the hand network connection: {error}") from error
+except RH56E2ValidationError as error:
+    raise RuntimeError(f"invalid SDK configuration or command: {error}") from error
 ```
 
 > **Physical-motion warning:** `write_enabled=True` permits physical movement.

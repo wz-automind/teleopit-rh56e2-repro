@@ -22,6 +22,13 @@ teleopit.sim2real.hands.__path__.insert(0, str(ROOT / "overlay" / "teleopit" / "
 
 
 class LegacyProtocolCompatibilityTests(unittest.TestCase):
+    def test_supported_sdk_surface_does_not_export_raw_write_client(self) -> None:
+        import teleopit_rh56e2.sdk as sdk
+
+        self.assertIn("RH56E2Hand", sdk.__all__)
+        self.assertNotIn("RH56E2ModbusClient", sdk.__all__)
+        self.assertFalse(hasattr(sdk, "RH56E2ModbusClient"))
+
     def test_legacy_protocol_exports_sdk_objects_and_warns(self) -> None:
         module_name = "teleopit.sim2real.hands.rh56e2_protocol"
         sys.modules.pop(module_name, None)
@@ -50,6 +57,17 @@ class LegacyProtocolCompatibilityTests(unittest.TestCase):
             "parse_write_response",
         ):
             self.assertIs(getattr(legacy, name), getattr(sdk_protocol, name))
+
+    def test_legacy_client_accepts_deprecated_timeout_s_keyword_and_property(self) -> None:
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            legacy = importlib.import_module("teleopit.sim2real.hands.rh56e2_protocol")
+            Rh56e2ModbusClient = legacy.Rh56e2ModbusClient
+            client = Rh56e2ModbusClient("192.0.2.10", timeout_s=0.25)
+            self.assertEqual(client.timeout_s, 0.25)
+
+        self.assertEqual(client.timeout, 0.25)
+        self.assertTrue(any(item.category is DeprecationWarning for item in caught))
 
 
 class TeleopitDelegationTests(unittest.TestCase):

@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import struct
 import sys
+import threading
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from teleopit_rh56e2.sdk.models import ModbusProtocolError, RH56E2ConnectionError
+from teleopit_rh56e2.sdk.models import ModbusProtocolError, RH56E2ConnectionError, RH56E2ValidationError
 from teleopit_rh56e2.sdk.protocol import (
     ANGLE_ACT,
     ANGLE_SET,
@@ -51,6 +52,37 @@ class FakeSocket:
         self.close_calls += 1
 
 
+class AllocationProbeClient(RH56E2ModbusClient):
+    """Pauses the first allocation so lock coverage is directly observable."""
+
+    def __init__(self) -> None:
+        super().__init__("host")
+        self.first_allocation = threading.Event()
+        self.second_allocation = threading.Event()
+        self.release_first_allocation = threading.Event()
+        self.sent: list[bytes] = []
+        self._allocation_calls = 0
+        self._allocation_probe_lock = threading.Lock()
+
+    def _next_transaction_id(self) -> int:
+        with self._allocation_probe_lock:
+            self._allocation_calls += 1
+            allocation_call = self._allocation_calls
+        transaction_id = super()._next_transaction_id()
+        if allocation_call == 1:
+            self.first_allocation.set()
+            self.release_first_allocation.wait(timeout=1)
+        else:
+            self.second_allocation.set()
+        return transaction_id
+
+    def _send(self, payload: bytes) -> None:
+        self.sent.append(payload)
+
+    def _recv_frame(self) -> bytes:
+        return response(b"\x03\x02\x00\x2a")
+
+
 class ProtocolTests(unittest.TestCase):
     def test_build_read_frame(self) -> None:
         self.assertEqual(build_read_frame(1, 0xFF, ANGLE_ACT, 6).hex(), "000100000006ff03060a0006")
@@ -82,8 +114,34 @@ class ProtocolTests(unittest.TestCase):
             {"timeout": 0},
             {"timeout": float("nan")},
         ):
-            with self.subTest(kwargs=kwargs), self.assertRaises(ValueError):
+            with self.subTest(kwargs=kwargs), self.assertRaises(RH56E2ValidationError):
                 RH56E2ModbusClient("192.0.2.10", **kwargs)
+
+    def test_request_lock_covers_transaction_allocation_and_frame_building(self) -> None:
+        client = AllocationProbeClient()
+        errors: list[BaseException] = []
+
+        def read() -> None:
+            try:
+                client.read_holding(ANGLE_ACT, 1)
+            except BaseException as exc:  # Thread failures must fail this test below.
+                errors.append(exc)
+
+        first = threading.Thread(target=read)
+        second = threading.Thread(target=read)
+        first.start()
+        self.assertTrue(client.first_allocation.wait(timeout=1))
+        second.start()
+        try:
+            self.assertFalse(client.second_allocation.wait(timeout=0.05))
+            self.assertEqual(client.sent, [])
+        finally:
+            client.release_first_allocation.set()
+            first.join(timeout=1)
+            second.join(timeout=1)
+
+        self.assertEqual(errors, [])
+        self.assertEqual([struct.unpack(">H", frame[:2])[0] for frame in client.sent], [1, 2])
 
     def test_write_rejects_bool_and_float_registers(self) -> None:
         for value in (True, 1.0):

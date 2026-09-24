@@ -8,7 +8,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from teleopit_rh56e2.sdk import DeviceSafetyError, RH56E2Hand, RH56E2Telemetry, WriteDisabledError
+from teleopit_rh56e2.sdk import (
+    DeviceSafetyError,
+    RH56E2Error,
+    RH56E2Hand,
+    RH56E2Telemetry,
+    RH56E2ValidationError,
+    WriteDisabledError,
+)
 from teleopit_rh56e2.sdk.protocol import (
     ANGLE_ACT,
     ANGLE_SET,
@@ -163,6 +170,9 @@ def connected_hand(*, client: FakeClient, write_enabled: bool = False, max_tempe
 
 
 class RH56E2HandWriteTests(unittest.TestCase):
+    def test_validation_error_is_part_of_the_public_sdk_hierarchy(self) -> None:
+        self.assertTrue(issubclass(RH56E2ValidationError, RH56E2Error))
+
     def test_constructor_rejects_coerced_transport_values(self) -> None:
         invalid_kwargs = (
             {"port": True},
@@ -184,8 +194,21 @@ class RH56E2HandWriteTests(unittest.TestCase):
 
     def test_constructor_requires_an_integer_temperature_limit(self) -> None:
         for value in (True, 70.5):
-            with self.subTest(value=value), self.assertRaises(TypeError):
+            with self.subTest(value=value), self.assertRaises(RH56E2ValidationError):
                 RH56E2Hand("192.0.2.10", client=FakeClient(), max_temperature_c=value)  # type: ignore[arg-type]
+
+    def test_constructor_rejects_temperature_limits_outside_supported_range(self) -> None:
+        for value in (0, 101, 256):
+            with self.subTest(value=value), self.assertRaises(RH56E2ValidationError):
+                RH56E2Hand("192.0.2.10", client=FakeClient(), max_temperature_c=value)
+
+    def test_write_opt_in_is_read_only_after_construction(self) -> None:
+        hand = RH56E2Hand("192.0.2.10", client=FakeClient())
+
+        with self.assertRaises(AttributeError):
+            hand.write_enabled = True  # type: ignore[misc]
+
+        self.assertFalse(hand.write_enabled)
 
     def test_write_is_disabled_by_default_and_sends_no_protocol_request(self) -> None:
         client = FakeClient()
@@ -225,7 +248,7 @@ class RH56E2HandWriteTests(unittest.TestCase):
                 client = FakeClient()
                 hand = connected_hand(client=client, write_enabled=True)
 
-                with self.assertRaises((TypeError, ValueError)):
+                with self.assertRaises(RH56E2ValidationError):
                     getattr(hand, method_name)(values)
 
                 self.assertEqual(client.reads, [])

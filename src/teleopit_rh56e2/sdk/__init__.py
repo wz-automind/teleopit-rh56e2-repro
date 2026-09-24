@@ -8,6 +8,7 @@ from .models import (
     RH56E2ConnectionError,
     RH56E2Error,
     RH56E2Telemetry,
+    RH56E2ValidationError,
     WriteDisabledError,
 )
 from .protocol import (
@@ -19,7 +20,6 @@ from .protocol import (
     SPEED_SET,
     STATE_ACT,
     TEMPERATURE_ACT,
-    RH56E2ModbusClient,
     build_read_frame,
     build_write_frame,
     parse_read_response,
@@ -28,6 +28,7 @@ from .protocol import (
 
 __all__ = [
     "RH56E2Error",
+    "RH56E2ValidationError",
     "RH56E2ConnectionError",
     "ModbusProtocolError",
     "WriteDisabledError",
@@ -35,7 +36,6 @@ __all__ = [
     "RH56E2Telemetry",
     "RH56E2Hand",
     "RH56E2Pair",
-    "RH56E2ModbusClient",
     "ANGLE_SET",
     "SPEED_SET",
     "ANGLE_ACT",

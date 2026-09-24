@@ -2,11 +2,11 @@
 
 ## Installation and import
 
-将本仓库安装到当前 Python 环境。`--no-deps` 使已固定版本的 Teleopit
-环境继续负责其依赖项。
+将本仓库安装到当前 Python 环境。`--no-build-isolation --no-deps` 使已固定
+版本的 Teleopit 环境继续负责其构建和运行时依赖项。
 
 ```bash
-python -m pip install --no-deps -e .
+python -m pip install --no-build-isolation --no-deps -e .
 ```
 
 ```python
@@ -15,6 +15,7 @@ from teleopit_rh56e2.sdk import (
     RH56E2ConnectionError,
     RH56E2Hand,
     RH56E2Pair,
+    RH56E2ValidationError,
     WriteDisabledError,
 )
 ```
@@ -46,8 +47,9 @@ with RH56E2Hand("192.168.123.210") as hand:
 > 才可以启用它。
 
 写入默认关闭。每次 `set_speed` 或 `set_positions` 调用都会先刷新故障和温度
-遥测；故障非零、温度超过 `max_temperature_c`（默认 `70`）或健康状态无法读取
-都会阻止命令。
+遥测；故障非零、温度超过 `max_temperature_c`（默认 `70`，支持的配置范围为
+`1..100`）或健康状态无法读取都会阻止命令。构造时的 `write_enabled` 设置为
+只读；如需更改，必须创建新的手实例。
 
 ```python
 from teleopit_rh56e2.sdk import RH56E2Hand
@@ -82,6 +84,10 @@ with RH56E2Pair(left, right) as pair:
 `192.168.123.210` 和 `192.168.123.211` 是已验证部署示例；两个环境专用地址
 都可能不同。在每只手均已分别通过只读和物理方向检查前，不要使用双手。
 
+双手命令会在任一侧发送前预先验证两侧命令及两只手的本地写入/连接状态。
+实际写入按左后右顺序执行，并非原子操作：左侧命令成功后，右侧仍可能发生
+设备或网络故障。
+
 ## Telemetry and limits
 
 `read_telemetry()` 返回不可变的 `RH56E2Telemetry` 快照。它有六个元组字段：
@@ -101,6 +107,7 @@ from teleopit_rh56e2.sdk import (
     DeviceSafetyError,
     RH56E2ConnectionError,
     RH56E2Hand,
+    RH56E2ValidationError,
     WriteDisabledError,
 )
 
@@ -113,6 +120,8 @@ except DeviceSafetyError as error:
     raise RuntimeError(f"write blocked by hand health: {error}") from error
 except RH56E2ConnectionError as error:
     raise RuntimeError(f"check the hand network connection: {error}") from error
+except RH56E2ValidationError as error:
+    raise RuntimeError(f"invalid SDK configuration or command: {error}") from error
 ```
 
 > **Physical-motion warning:** `write_enabled=True` permits physical movement.

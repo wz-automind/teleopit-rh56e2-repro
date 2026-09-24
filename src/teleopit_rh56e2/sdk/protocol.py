@@ -6,10 +6,16 @@ import math
 import socket
 import struct
 import threading
+import warnings
 from numbers import Integral
 from typing import Callable, Sequence
 
-from .models import ModbusProtocolError, RH56E2ConnectionError
+from .models import (
+    ModbusProtocolError,
+    RH56E2ConnectionError,
+    _RH56E2TypeValidationError,
+    _RH56E2ValueValidationError,
+)
 
 ANGLE_SET = 1486
 SPEED_SET = 1522
@@ -22,8 +28,10 @@ TEMPERATURE_ACT = 1618
 
 
 def build_read_frame(transaction_id: int, unit_id: int, address: int, count: int) -> bytes:
-    if not isinstance(count, Integral) or isinstance(count, bool) or not 1 <= count <= 125:
-        raise ValueError(f"Modbus read count must be in 1..125, got {count}")
+    if not isinstance(count, Integral) or isinstance(count, bool):
+        raise _RH56E2TypeValidationError(f"Modbus read count must be an integer, got {count!r}")
+    if not 1 <= count <= 125:
+        raise _RH56E2ValueValidationError(f"Modbus read count must be in 1..125, got {count}")
     pdu = struct.pack(">BHH", 0x03, _u16(address, "address"), count)
     return struct.pack(">HHHB", transaction_id & 0xFFFF, 0, len(pdu) + 1, _u8(unit_id, "unit_id")) + pdu
 
@@ -31,7 +39,7 @@ def build_read_frame(transaction_id: int, unit_id: int, address: int, count: int
 def build_write_frame(transaction_id: int, unit_id: int, address: int, values: Sequence[int]) -> bytes:
     encoded = tuple(_register_value(value) for value in values)
     if not 1 <= len(encoded) <= 123:
-        raise ValueError(f"Modbus write count must be in 1..123, got {len(encoded)}")
+        raise _RH56E2ValueValidationError(f"Modbus write count must be in 1..123, got {len(encoded)}")
     payload = struct.pack(">" + "H" * len(encoded), *encoded)
     pdu = struct.pack(">BHHB", 0x10, _u16(address, "address"), len(encoded), len(payload)) + payload
     return struct.pack(">HHHB", transaction_id & 0xFFFF, 0, len(pdu) + 1, _u8(unit_id, "unit_id")) + pdu
@@ -77,14 +85,28 @@ class RH56E2ModbusClient:
         *,
         unit_id: int = 0xFF,
         timeout: float = 0.5,
+        timeout_s: float | None = None,
         socket_factory: Callable[..., socket.socket] = socket.socket,
     ):
-        if not isinstance(port, Integral) or isinstance(port, bool) or not 1 <= port <= 65535:
-            raise ValueError(f"port must be in 1..65535, got {port!r}")
-        if not isinstance(unit_id, Integral) or isinstance(unit_id, bool) or not 0 <= unit_id <= 0xFF:
-            raise ValueError(f"unit_id must be in 0..255, got {unit_id!r}")
-        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not math.isfinite(timeout) or timeout <= 0:
-            raise ValueError(f"timeout must be a finite positive number, got {timeout!r}")
+        if timeout_s is not None:
+            warnings.warn(
+                "timeout_s is deprecated; use timeout instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            timeout = timeout_s
+        if not isinstance(port, Integral) or isinstance(port, bool):
+            raise _RH56E2TypeValidationError(f"port must be an integer, got {port!r}")
+        if not 1 <= port <= 65535:
+            raise _RH56E2ValueValidationError(f"port must be in 1..65535, got {port!r}")
+        if not isinstance(unit_id, Integral) or isinstance(unit_id, bool):
+            raise _RH56E2TypeValidationError(f"unit_id must be an integer, got {unit_id!r}")
+        if not 0 <= unit_id <= 0xFF:
+            raise _RH56E2ValueValidationError(f"unit_id must be in 0..255, got {unit_id!r}")
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+            raise _RH56E2TypeValidationError(f"timeout must be a finite positive number, got {timeout!r}")
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise _RH56E2ValueValidationError(f"timeout must be a finite positive number, got {timeout!r}")
         self.host = str(host)
         self.port = int(port)
         self.unit_id = int(unit_id)
@@ -93,6 +115,16 @@ class RH56E2ModbusClient:
         self._socket: socket.socket | None = None
         self._transaction_id = 0
         self._lock = threading.Lock()
+
+    @property
+    def timeout_s(self) -> float:
+        """Deprecated alias for :attr:`timeout`."""
+        warnings.warn(
+            "timeout_s is deprecated; use timeout instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.timeout
 
     def connect(self) -> None:
         if self._socket is not None:
@@ -117,28 +149,31 @@ class RH56E2ModbusClient:
         self._socket = sock
 
     def read_holding(self, address: int, count: int) -> tuple[int, ...]:
-        transaction_id = self._next_transaction_id()
-        request = build_read_frame(transaction_id, self.unit_id, address, count)
         with self._lock:
+            transaction_id = self._next_transaction_id()
+            request = build_read_frame(transaction_id, self.unit_id, address, count)
             self._send(request)
             frame = self._recv_frame()
         return parse_read_response(frame, count=count)
 
     def read_bytes(self, address: int, byte_count: int) -> bytes:
-        if not isinstance(byte_count, Integral) or isinstance(byte_count, bool) or byte_count <= 0:
-            raise ValueError("byte_count must be positive")
+        if not isinstance(byte_count, Integral) or isinstance(byte_count, bool):
+            raise _RH56E2TypeValidationError("byte_count must be a positive integer")
+        if byte_count <= 0:
+            raise _RH56E2ValueValidationError("byte_count must be positive")
         register_count = (byte_count + 1) // 2
         values = self.read_holding(address, register_count)
         payload = struct.pack(">" + "H" * len(values), *values)
         return payload[:byte_count]
 
     def write_holding(self, address: int, values: Sequence[int]) -> None:
-        transaction_id = self._next_transaction_id()
-        request = build_write_frame(transaction_id, self.unit_id, address, values)
         with self._lock:
+            transaction_id = self._next_transaction_id()
+            command = tuple(values)
+            request = build_write_frame(transaction_id, self.unit_id, address, command)
             self._send(request)
             frame = self._recv_frame()
-        parse_write_response(frame, address=address, count=len(values))
+        parse_write_response(frame, address=address, count=len(command))
 
     def close(self) -> None:
         sock, self._socket = self._socket, None
@@ -199,25 +234,25 @@ def _parse_response(frame: bytes) -> tuple[int, bytes]:
 
 def _u8(value: object, name: str) -> int:
     if not isinstance(value, Integral) or isinstance(value, bool):
-        raise TypeError(f"{name} must be an integer, got {value!r}")
+        raise _RH56E2TypeValidationError(f"{name} must be an integer, got {value!r}")
     parsed = int(value)
     if not 0 <= parsed <= 0xFF:
-        raise ValueError(f"{name} must be in 0..255, got {value!r}")
+        raise _RH56E2ValueValidationError(f"{name} must be in 0..255, got {value!r}")
     return parsed
 
 
 def _u16(value: object, name: str) -> int:
     if not isinstance(value, Integral) or isinstance(value, bool):
-        raise TypeError(f"{name} must be an integer, got {value!r}")
+        raise _RH56E2TypeValidationError(f"{name} must be an integer, got {value!r}")
     parsed = int(value)
     if not 0 <= parsed <= 0xFFFF:
-        raise ValueError(f"{name} must be in 0..65535, got {value!r}")
+        raise _RH56E2ValueValidationError(f"{name} must be in 0..65535, got {value!r}")
     return parsed
 
 
 def _register_value(value: object) -> int:
     if not isinstance(value, Integral) or isinstance(value, bool):
-        raise TypeError(f"register value must be an integer, got {value!r}")
+        raise _RH56E2TypeValidationError(f"register value must be an integer, got {value!r}")
     parsed = int(value)
     if parsed == -1:
         return 0xFFFF

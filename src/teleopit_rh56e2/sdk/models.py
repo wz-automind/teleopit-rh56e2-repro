@@ -9,6 +9,18 @@ class RH56E2Error(Exception):
     """Base class for errors raised by the RH56E2 SDK."""
 
 
+class RH56E2ValidationError(RH56E2Error):
+    """SDK configuration or command data is invalid."""
+
+
+class _RH56E2TypeValidationError(RH56E2ValidationError, TypeError):
+    """Invalid SDK configuration or command value type."""
+
+
+class _RH56E2ValueValidationError(RH56E2ValidationError, ValueError):
+    """Invalid SDK configuration or command value."""
+
+
 class RH56E2ConnectionError(RH56E2Error, ConnectionError):
     """A socket could not be used to communicate with an RH56E2."""
 

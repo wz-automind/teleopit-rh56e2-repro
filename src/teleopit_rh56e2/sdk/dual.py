@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Sequence
 
 from .hand import RH56E2Hand
-from .models import RH56E2Telemetry
+from .models import RH56E2Telemetry, _RH56E2ValueValidationError
 
 
 class RH56E2Pair:
@@ -13,7 +13,7 @@ class RH56E2Pair:
 
     def __init__(self, left: RH56E2Hand, right: RH56E2Hand) -> None:
         if left.endpoint == right.endpoint:
-            raise ValueError("left and right RH56E2 endpoints must be distinct")
+            raise _RH56E2ValueValidationError("left and right RH56E2 endpoints must be distinct")
         self.left = left
         self.right = right
 
@@ -56,11 +56,19 @@ class RH56E2Pair:
         return {"left": self.left.read_telemetry(), "right": self.right.read_telemetry()}
 
     def set_speeds(self, *, left: Sequence[int], right: Sequence[int]) -> None:
-        """Delegate each speed command to its corresponding hand."""
-        self.left.set_speed(left)
-        self.right.set_speed(right)
+        """Write left then right after prevalidation; the two writes are not atomic."""
+        left_command = self.left.validate_speed(left)
+        right_command = self.right.validate_speed(right)
+        self.left._require_write_ready()
+        self.right._require_write_ready()
+        self.left.set_speed(left_command)
+        self.right.set_speed(right_command)
 
     def set_positions(self, *, left: Sequence[int], right: Sequence[int]) -> None:
-        """Delegate each position command to its corresponding hand."""
-        self.left.set_positions(left)
-        self.right.set_positions(right)
+        """Write left then right after prevalidation; the two writes are not atomic."""
+        left_command = self.left.validate_positions(left)
+        right_command = self.right.validate_positions(right)
+        self.left._require_write_ready()
+        self.right._require_write_ready()
+        self.left.set_positions(left_command)
+        self.right.set_positions(right_command)
