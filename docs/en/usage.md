@@ -25,8 +25,7 @@ $HOME/Teleopit/ckpt/track_g1.onnx
 
 - Ubuntu 22.04/24.04 or compatible Linux, x86_64, Python 3.10 or 3.11.
 - Miniforge, `git`, Python build tools, and internet access.
-- A discrete GPU with working OpenGL/Vulkan drivers is recommended for simulation.
-- Hardware work requires a Unitree G1, left and right RH56E2 hands, PICO 4 Ultra, a working emergency stop, an isolated test area, and wired networking.
+- Hardware work requires a Unitree G1, left and right RH56E2 hands, PICO 4 Ultra, a working emergency stop, an isolated test area.
 - Power each RH56E2 from a stable 24 V supply. The manual specifies 4.5 A maximum grasping current per hand. Do not draw power from an unverified G1 connector.
 
 Example Ubuntu prerequisites:
