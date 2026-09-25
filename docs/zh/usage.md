@@ -250,9 +250,7 @@ conda activate teleopit
 python --version
 ```
 
-SSH 只负责远程登录，`scp` 负责在同一 SSH 通道上传文件；二者都不会自动创建
-Python 环境。首次创建环境和安装 Python 依赖仍需要 G1 能访问配置好的 Conda/PyPI
-镜像；Teleopit、somehand 和 E2 集成源码本身不需要在 G1 上从 GitHub 克隆。
+首次创建环境和安装 Python 依赖仍需要 G1 能访问配置好的 Conda/PyPI镜像；Teleopit、somehand 和 E2 集成源码本身不需要在 G1 上从 GitHub 克隆。
 
 G1 初始没有 Teleopit 时，必须先恢复完整目录，再复制 E2 overlay。下面的命令也
 适用于重新部署：备份旧目录、解压并安装；备份只改名，不直接删除。
