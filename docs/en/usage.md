@@ -21,8 +21,6 @@ $HOME/Teleopit/third_party/somehand/
 $HOME/Teleopit/ckpt/track_g1.onnx
 ```
 
-The data flow is PICO body/hand tracking → pico-bridge → Teleopit state machine and policy → G1. Hand tracking also flows through somehand retargeting → RH56E2 over Modbus TCP. The configured 120/60/50/200 Hz values are update rates for individual stages, not end-to-end latency; measure actual latency on the deployed host, network, and hardware.
-
 ## 3. Prerequisites
 
 - Ubuntu 22.04/24.04 or compatible Linux, x86_64, Python 3.10 or 3.11.
