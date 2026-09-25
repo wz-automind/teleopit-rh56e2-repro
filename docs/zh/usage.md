@@ -124,7 +124,6 @@ python scripts/run/run_sim_rh56e2.py \
   controller.policy_path=ckpt/track_g1.onnx
 ```
 
-集成仓库仍保留兼容入口 `scripts/run/run_sim_rh56e2.sh`。
 
 终端应显示 `State: STANDING`、`Input: Pico4 live`、`Viewers: all` 和 `Hands: RH56E2`。收到 PICO 首帧后，按以下顺序操作：
 
