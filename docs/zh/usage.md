@@ -24,10 +24,7 @@ G1 上使用以下两个目录：
 ## 3. 前置条件
 
 - 开发机需要 `git`、`tar`、`scp` 和 GitHub 网络访问，用于克隆与制作离线包。
-- G1 初始没有 Teleopit 源码目录；开发机通过压缩包提供 `/home/unitree/Teleopit`。
-- G1 已有 `/home/unitree/miniforge3/envs/teleopit`，其中包含原 Teleopit 真机依赖。
-- G1 的 `teleopit` 环境使用 Python 3.10 或 3.11，并已包含原 Teleopit 真机依赖。
-- 仿真建议使用带 OpenGL/Vulkan 驱动的独立显卡。
+- G1 的 `teleopit` 环境使用 Python 3.10 或 3.11。
 - 真机需要 Unitree G1、左右 RH56E2、PICO 4 Ultra、可用急停、隔离测试区和有线网卡。
 - RH56E2 使用稳定的 24 V 电源；手册给出的单手最大抓取电流为 4.5 A。
 
