@@ -32,7 +32,7 @@ PICO 4 Ultra
                                                       └─ guarded Modbus TCP hardware
 ```
 
-The reviewed upstream versions are recorded in [`manifest.json`](manifest.json). Integration files under `overlay/` use the same destination paths as Teleopit and somehand. For the deployed G1, this repository is packaged on a development computer, transferred over SSH/SCP, and merged into the existing `/home/unitree/Teleopit`; G1 does not clone a second Teleopit checkout.
+The reviewed upstream versions are recorded in [`manifest.json`](manifest.json). Integration files under `overlay/` use the same destination paths as Teleopit and somehand. For the deployed G1, the development computer packages and transfers both a complete Teleopit directory and this integration repository over SSH/SCP. G1 first unpacks `/home/unitree/Teleopit`, then applies the RH56E2 overlay; it does not clone either repository online.
 
 ## Highlights
 
@@ -45,22 +45,27 @@ The reviewed upstream versions are recorded in [`manifest.json`](manifest.json).
 
 ## Quick start
 
-Package the repository on a development computer and send it to G1:
+Package both the complete prepared Teleopit directory and this repository on a
+development computer, then send both archives to G1:
 
 ```bash
 git clone https://github.com/wz-automind/teleopit-rh56e2-repro.git
 cd teleopit-rh56e2-repro
 git archive --format=tar.gz --prefix=teleopit-rh56e2-repro/ \
   --output=../teleopit-rh56e2-repro-latest.tar.gz HEAD
-scp ../teleopit-rh56e2-repro-latest.tar.gz \
+cd ~
+tar --exclude='Teleopit/.git' --exclude='*/__pycache__' \
+  --exclude='*.pyc' -czf Teleopit-latest.tar.gz Teleopit
+scp ~/teleopit-rh56e2-repro-latest.tar.gz \
   unitree@192.168.50.62:/home/unitree/
+scp ~/Teleopit-latest.tar.gz unitree@192.168.50.62:/home/unitree/
 ```
 
-On G1, unpack the archive, back up the existing `/home/unitree/Teleopit`, copy
-the overlay into it, and install only this repository's SDK into the existing
-`teleopit` Conda environment. The exact commands—including how to transfer a
-complete prepared `Teleopit` directory—are in the English and Chinese usage
-guides below. Every G1 shell continues to use:
+On the first deployment, G1 has no Teleopit source tree. Unpack the complete
+archive first, copy the RH56E2 overlay into it, and install this repository's
+SDK into the existing `teleopit` Conda environment. The exact first-deployment
+and later-update commands are in the English and Chinese usage guides below.
+Every G1 shell continues to use:
 
 ```bash
 source /home/unitree/miniforge3/bin/activate teleopit

@@ -11,10 +11,11 @@ are pinned by version and SHA-256.
 
 This repository is not a snapshot of three unrelated histories.
 `manifest.json` records the reviewed Teleopit, somehand, and pico-bridge
-versions, while the deployed G1 already has a working Teleopit environment.
-This repository is packaged on a development computer, transferred to G1, and
-copied into the existing Teleopit paths. The runtime keeps Teleopit's layout
-while this repository's review surface remains limited to RH56E2 additions.
+versions. The complete prepared Teleopit tree and this integration repository
+are both packaged on a development computer and transferred to G1. Teleopit is
+unpacked first, then the integration files are copied into its normal paths.
+The runtime keeps Teleopit's layout while this repository's review surface
+remains limited to RH56E2 additions.
 
 An overlay is therefore a path-compatible integration layer, not a runtime
 monkey patch: `overlay/teleopit/sim2real/hands/rh56e2.py` is copied to
@@ -24,7 +25,7 @@ monkey patch: `overlay/teleopit/sim2real/hands/rh56e2.py` is copied to
 
 1. Read the upstream changelogs and migration notes.
 2. Update one upstream at a time in `manifest.json` and `pyproject.toml`.
-3. Validate the overlay on a development copy; back up G1's existing Teleopit before hardware deployment.
+3. Validate the overlay on a development copy; package the complete tested Teleopit tree and preserve a backup before replacing any deployed copy.
 4. Run compilation, unit tests, Ruff, shell syntax, and offline model validation.
 5. Run PICO simulation and verify sides, axes, modes, pause/resume, and stale tracking.
 6. Repeat read-only telemetry and staged single-DOF tests before continuous hardware control.

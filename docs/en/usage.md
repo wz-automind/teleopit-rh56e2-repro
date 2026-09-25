@@ -1,9 +1,10 @@
 # Teleopit + RH56E2 Usage Guide (English)
 
-This guide follows the offline deployment that was used on the robot: clone and
-package this repository on a development computer, transfer it to G1 with
-SSH/SCP, unpack it, and merge the RH56E2 overlay and SDK into G1's existing
-`/home/unitree/Teleopit`. G1 does not clone or create a second Teleopit tree.
+This guide follows the offline deployment that was used on the robot. G1
+initially has no Teleopit source tree. A development computer prepares both a
+complete Teleopit archive and this RH56E2 integration archive, transfers both
+to G1 with SSH/SCP, unpacks Teleopit, and then merges the RH56E2 overlay and SDK
+into `/home/unitree/Teleopit`. G1 does not clone either repository online.
 
 ## 1. Scope and safety boundary
 
@@ -19,7 +20,7 @@ The G1 uses these two directories:
 
 ```text
 /home/unitree/teleopit-rh56e2-repro/  unpacked integration repository: validation and safety entry points
-/home/unitree/Teleopit/               existing G1 Teleopit: final runtime directory
+/home/unitree/Teleopit/               transferred complete Teleopit: final runtime directory
 /home/unitree/Teleopit/third_party/somehand/
 /home/unitree/Teleopit/ckpt/track_g1.onnx
 ```
@@ -27,8 +28,8 @@ The G1 uses these two directories:
 ## 3. Prerequisites
 
 - The development computer needs `git`, `tar`, `scp`, and GitHub access to make the offline bundle.
-- G1 already has `/home/unitree/Teleopit` and `/home/unitree/miniforge3/envs/teleopit`.
-- G1's `teleopit` environment uses Python 3.10 or 3.11 and contains the original Teleopit hardware dependencies.
+- G1 initially has no Teleopit source tree; the development computer supplies `/home/unitree/Teleopit` as an archive.
+- G1 has `/home/unitree/miniforge3/envs/teleopit`, using Python 3.10 or 3.11 with the original Teleopit hardware dependencies.
 - A discrete GPU with working OpenGL/Vulkan drivers is recommended for simulation.
 - Hardware work requires a Unitree G1, left and right RH56E2 hands, PICO 4 Ultra, a working emergency stop, an isolated test area, and wired networking.
 - Power each RH56E2 from a stable 24 V supply. The manual specifies 4.5 A maximum grasping current per hand. Do not draw power from an unverified G1 connector.
@@ -58,8 +59,8 @@ git archive --format=tar.gz \
 This archive contains only committed integration files. It excludes `.git`,
 temporary worktrees, and local caches.
 
-To transfer a complete, already-prepared Teleopit source and asset directory as
-well, create a second archive from the development computer's home directory:
+The complete Teleopit source and asset directory is required for the first
+deployment. Create its archive from the development computer's home directory:
 
 ```bash
 cd ~
@@ -74,19 +75,14 @@ to use `/home/unitree/miniforge3/envs/teleopit`. Do not copy a development
 computer's Conda directory onto G1 because CPU architecture and locally compiled
 dependencies may differ.
 
-## 5. Transfer to G1, unpack, and merge into existing Teleopit
+## 5. Transfer to G1, install Teleopit, and merge the E2 integration
 
-From the development computer, transfer the integration bundle through G1's
-Wi-Fi/SSH address:
+From the development computer, transfer both archives through G1's Wi-Fi/SSH
+address:
 
 ```bash
 scp ~/teleopit-rh56e2-repro-latest.tar.gz \
   unitree@192.168.50.62:/home/unitree/
-```
-
-If the complete Teleopit archive was created, transfer that file too:
-
-```bash
 scp ~/Teleopit-latest.tar.gz \
   unitree@192.168.50.62:/home/unitree/
 ```
@@ -105,12 +101,17 @@ fi
 tar -xzf teleopit-rh56e2-repro-latest.tar.gz -C /home/unitree
 ```
 
-Normally, reuse G1's existing Teleopit. Verify it, make a recoverable backup,
-then merge the E2 files:
+G1 initially has no Teleopit. Restore the complete directory before copying any
+E2 overlay files. The backup branch makes the same commands safe for a later
+redeployment:
 
 ```bash
+cd /home/unitree
+if [ -d Teleopit ]; then
+  mv Teleopit "Teleopit-backup-$stamp"
+fi
+tar -xzf Teleopit-latest.tar.gz -C /home/unitree
 test -d /home/unitree/Teleopit/teleopit
-cp -a /home/unitree/Teleopit "/home/unitree/Teleopit-backup-$stamp"
 
 cd /home/unitree/teleopit-rh56e2-repro
 cp -a overlay/teleopit/. /home/unitree/Teleopit/teleopit/
@@ -124,24 +125,14 @@ source /home/unitree/miniforge3/bin/activate teleopit
 python -m pip install --no-build-isolation -e . --no-deps
 ```
 
-Only when G1 has no usable `/home/unitree/Teleopit` and a prepared
-`Teleopit-latest.tar.gz` has already been transferred should the complete
-Teleopit archive be restored first. Then run the overlay-copy and SDK-install
-commands above:
-
-```bash
-cd /home/unitree
-if [ -d Teleopit ]; then
-  mv Teleopit "Teleopit-backup-$stamp"
-fi
-tar -xzf Teleopit-latest.tar.gz -C /home/unitree
-test -d /home/unitree/Teleopit/teleopit
-```
+On later RH56E2-only updates, `/home/unitree/Teleopit` already exists: transfer
+only the new integration archive, back up the current Teleopit directory, and
+repeat the overlay-copy and SDK-install commands. Do not extract an older
+`Teleopit-latest.tar.gz` over a working updated runtime.
 
 For later G1 shells, continue to run
 `source /home/unitree/miniforge3/bin/activate teleopit` first. This procedure
-does not run `git clone` on G1 and does not download or replace another
-Teleopit checkout.
+does not run `git clone` on G1 or download either repository online.
 
 ## 6. Configure and install the PICO app
 
@@ -244,11 +235,11 @@ The configured `policy_hz: 50` and `pd_hz: 200` are policy and simulation-PD upd
 | Policy or model is missing | Confirm that the transferred `/home/unitree/Teleopit` contains `ckpt` and assets; if not, rebuild and transfer `Teleopit-latest.tar.gz` from the development computer instead of reinstalling online on G1 |
 | Left/right hand or joint direction is wrong | Stay in simulation, record the exact hand and DOF, and do not continue to the hardware steps after Section 8 |
 
-## 9. Confirm the existing hardware components
+## 9. Confirm the transferred hardware components
 
-The offline merge does not redownload the G1 bridge. Confirm that G1's original
-`teleopit` environment and Teleopit directory already contain the hardware
-runtime, and check the newly merged SDK:
+The offline merge does not redownload the G1 bridge. Confirm that the existing
+Conda environment and the Teleopit directory transferred in Section 5 together
+provide the hardware runtime, and check the newly merged SDK:
 
 ```bash
 source /home/unitree/miniforge3/bin/activate teleopit
@@ -258,11 +249,41 @@ python scripts/dev/check_rh56e2.py \
   --teleopit-dir /home/unitree/Teleopit --profile real
 ```
 
-If `g1_bridge_sdk` is missing, the original G1 Teleopit hardware environment is
-incomplete. Restore the previously working G1 environment or transfer a
-compatible prepared package; do not clone another Teleopit on the robot.
+If `g1_bridge_sdk` is missing, either G1's preinstalled Conda environment or the
+transferred Teleopit package is incomplete. Repair the environment or rebuild
+the compatible package on the development computer; do not clone Teleopit on
+the robot.
 
 ## 10. Configure RH56E2 power and networking
+
+### How the deployed E2 endpoints were identified
+
+We did not infer port `6000` from the G1 address or choose it at random. First,
+the G1-side interface and subnet were confirmed, then the powered hand
+addresses were checked in the neighbor table. The RH56E2 Modbus TCP protocol
+configuration specifies TCP port `6000`; a TCP connection test and a read-only
+Modbus FC03 request then confirmed that the endpoints were E2 controllers:
+
+```bash
+ip -4 address show eth1
+ip route
+ip neigh show dev eth1
+
+nc -vz -w 2 192.168.123.210 6000
+nc -vz -w 2 192.168.123.211 6000
+
+cd /home/unitree/teleopit-rh56e2-repro
+bash scripts/dev/check_unitree_g1_rh56e2.sh
+```
+
+In the verified installation, `eth1` owned `192.168.123.164/24`, the two E2
+controllers were `192.168.123.210` and `192.168.123.211`, and both accepted TCP
+connections on `6000`. An open TCP port alone does not identify an E2: the last
+command performs read-only Modbus FC03 telemetry reads and must return plausible
+six-channel data with no faults. Do not identify a device by sending random
+register writes. If `nc` is unavailable, use the read-only check directly.
+
+### Generic address configuration
 
 Power and configure one hand at a time. Multiple devices may share the factory address `192.168.11.210`; before attaching both to one subnet, assign a unique address to one, for example left `.210` and right `.211`. These are examples, not addresses to copy blindly into an existing network.
 
@@ -503,10 +524,14 @@ After stopping control, rerun the dual-hand read-only preflight from section 13 
 ## 19. Command reference
 
 ```bash
-# Development computer: build the integration bundle and transfer it to G1
+# Development computer: build and transfer complete Teleopit plus the integration bundle
+cd ~
+tar --exclude='Teleopit/.git' --exclude='*/__pycache__' --exclude='*.pyc' -czf Teleopit-latest.tar.gz Teleopit
+cd ~/teleopit-rh56e2-repro
 git archive --format=tar.gz --prefix=teleopit-rh56e2-repro/ --output=../teleopit-rh56e2-repro-latest.tar.gz HEAD
-scp ../teleopit-rh56e2-repro-latest.tar.gz unitree@192.168.50.62:/home/unitree/
-# G1: unpack, then follow Section 5 to back up and merge into /home/unitree/Teleopit
+scp ~/Teleopit-latest.tar.gz ~/teleopit-rh56e2-repro-latest.tar.gz unitree@192.168.50.62:/home/unitree/
+# G1 first deployment: unpack complete Teleopit before applying the integration overlay
+tar -xzf /home/unitree/Teleopit-latest.tar.gz -C /home/unitree
 tar -xzf /home/unitree/teleopit-rh56e2-repro-latest.tar.gz -C /home/unitree
 # Offline validation
 bash scripts/dev/validate.sh

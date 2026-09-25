@@ -14,7 +14,7 @@ Teleopit RH56E2 是建立在 Teleopit、somehand 和 pico-bridge 基础上的集
 ## 推荐阅读顺序
 
 1. 先读架构文档，明确每个环节由哪个项目负责。
-2. 按完整使用手册把仓库或完整 Teleopit 包传到 G1，并合入已有运行目录。
+2. 按完整使用手册把完整 Teleopit 包和本集成仓库都传到 G1，再应用 overlay。
 3. 连接手部电源或网线前阅读 RH56E2 和 Python SDK 参考。
 4. 逐级完成真机测试，不要第一次就启动全身控制。
 

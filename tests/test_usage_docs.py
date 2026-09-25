@@ -65,7 +65,7 @@ class UsageGuideTests(unittest.TestCase):
                 with self.subTest(path=path.name, fragment=fragment):
                     self.assertIn(fragment, text)
 
-    def test_both_guides_deploy_offline_into_existing_teleopit(self):
+    def test_both_guides_deploy_full_teleopit_before_integration_overlay(self):
         required = (
             "git archive --format=tar.gz",
             "teleopit-rh56e2-repro-latest.tar.gz",
@@ -85,6 +85,10 @@ class UsageGuideTests(unittest.TestCase):
             for fragment in required:
                 with self.subTest(path=path.name, fragment=fragment):
                     self.assertIn(fragment, text)
+            self.assertLess(
+                text.index("tar -xzf Teleopit-latest.tar.gz"),
+                text.index("cp -a overlay/teleopit/."),
+            )
 
         for path in DOCS:
             text = path.read_text(encoding="utf-8")
@@ -92,8 +96,25 @@ class UsageGuideTests(unittest.TestCase):
 
         chinese = DOCS[0].read_text(encoding="utf-8")
         english = DOCS[1].read_text(encoding="utf-8")
+        self.assertIn("G1 初始没有 Teleopit", chinese)
+        self.assertIn("G1 initially has no Teleopit", english)
         self.assertIn("Teleopit 源码压缩包不包含 Conda 环境", chinese)
         self.assertIn("Teleopit source archive does not contain the Conda environment", english)
+
+    def test_both_guides_explain_how_e2_endpoints_were_identified(self):
+        required = (
+            "ip -4 address show eth1",
+            "ip route",
+            "ip neigh show dev eth1",
+            "nc -vz -w 2 192.168.123.210 6000",
+            "nc -vz -w 2 192.168.123.211 6000",
+            "Modbus FC03",
+        )
+        for path in DOCS:
+            text = path.read_text(encoding="utf-8")
+            for fragment in required:
+                with self.subTest(path=path.name, fragment=fragment):
+                    self.assertIn(fragment, text)
 
     def test_both_guides_document_live_simulation_operation(self):
         required = (

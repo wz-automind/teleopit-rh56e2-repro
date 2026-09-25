@@ -17,7 +17,7 @@ of its upstream projects.
 ## Recommended reading order
 
 1. Read the architecture page to understand which project owns each stage.
-2. Follow the complete usage guide to transfer the repository or complete Teleopit bundle to G1 and merge it into the existing runtime.
+2. Follow the complete usage guide to transfer both the complete Teleopit bundle and this integration repository to G1, then apply the overlay.
 3. Read the RH56E2 and Python SDK references before connecting hand power or Ethernet.
 4. Complete every staged hardware check; do not start with full-body control.
 

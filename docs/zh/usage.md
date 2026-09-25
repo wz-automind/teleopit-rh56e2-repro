@@ -1,9 +1,9 @@
 # Teleopit + RH56E2 使用手册（中文）
 
-本文按已经实际采用的离线部署方式操作：在开发机克隆并打包本仓库，通过
-SSH/SCP 传到 G1，解压后把 RH56E2 overlay 和 SDK 合入 G1 已有的
-`/home/unitree/Teleopit`，再完成只读检查、单手低速测试、G1 站立测试和
-完整真机联调。G1 不需要重新从 GitHub 克隆或新建另一套 Teleopit。
+本文按已经实际采用的离线部署方式操作。G1 初始没有 Teleopit 源码目录；开发机
+同时准备完整 Teleopit 压缩包和本 RH56E2 集成仓库压缩包，通过 SSH/SCP 传到
+G1，先解压 Teleopit，再把 RH56E2 overlay 和 SDK 合入
+`/home/unitree/Teleopit`。G1 不在线克隆这两个仓库。
 
 ## 1. 范围与安全边界
 
@@ -18,7 +18,7 @@ G1 上使用以下两个目录：
 
 ```text
 /home/unitree/teleopit-rh56e2-repro/  解压后的集成仓库：验证和安全入口
-/home/unitree/Teleopit/               G1 已有 Teleopit：最终运行目录
+/home/unitree/Teleopit/               从开发机传入的完整 Teleopit：最终运行目录
 /home/unitree/Teleopit/third_party/somehand/
 /home/unitree/Teleopit/ckpt/track_g1.onnx
 ```
@@ -26,7 +26,8 @@ G1 上使用以下两个目录：
 ## 3. 前置条件
 
 - 开发机需要 `git`、`tar`、`scp` 和 GitHub 网络访问，用于克隆与制作离线包。
-- G1 已有 `/home/unitree/Teleopit` 和 `/home/unitree/miniforge3/envs/teleopit`。
+- G1 初始没有 Teleopit 源码目录；开发机通过压缩包提供 `/home/unitree/Teleopit`。
+- G1 已有 `/home/unitree/miniforge3/envs/teleopit`，其中包含原 Teleopit 真机依赖。
 - G1 的 `teleopit` 环境使用 Python 3.10 或 3.11，并已包含原 Teleopit 真机依赖。
 - 仿真建议使用带 OpenGL/Vulkan 驱动的独立显卡。
 - 真机需要 Unitree G1、左右 RH56E2、PICO 4 Ultra、可用急停、隔离测试区和有线网卡。
@@ -57,8 +58,8 @@ git archive --format=tar.gz \
 这个包只包含 Git 仓库中已提交的集成代码，不包含 `.git`、临时 worktree 或
 本机缓存。
 
-如果还需要把开发机上已经准备好的完整 Teleopit 源码与资源目录一起传过去，
-可在开发机的 `~` 下另做一个包：
+首次部署必须同时传入开发机上已经准备好的完整 Teleopit 源码与资源目录。
+在开发机的 `~` 下制作第二个压缩包：
 
 ```bash
 cd ~
@@ -72,18 +73,13 @@ Teleopit 源码压缩包不包含 Conda 环境；G1 仍使用自己已有的
 `/home/unitree/miniforge3/envs/teleopit`。不要把开发机的 Conda 环境直接复制到
 G1，因为 CPU 架构和本地编译依赖可能不同。
 
-## 5. 传到 G1、解压并合入已有 Teleopit
+## 5. 传到 G1、安装 Teleopit 并合入 E2
 
-先在开发机通过 G1 的 Wi-Fi/SSH 地址传输集成仓库包：
+在开发机通过 G1 的 Wi-Fi/SSH 地址传输两个压缩包：
 
 ```bash
 scp ~/teleopit-rh56e2-repro-latest.tar.gz \
   unitree@192.168.50.62:/home/unitree/
-```
-
-如果制作了完整 Teleopit 包，再传第二个文件：
-
-```bash
 scp ~/Teleopit-latest.tar.gz \
   unitree@192.168.50.62:/home/unitree/
 ```
@@ -101,11 +97,16 @@ fi
 tar -xzf teleopit-rh56e2-repro-latest.tar.gz -C /home/unitree
 ```
 
-正常情况应复用 G1 已有的 Teleopit。先确认目录并做可恢复备份，再合入 E2 文件：
+G1 初始没有 Teleopit。必须先恢复完整目录，再复制任何 E2 overlay。下面的备份
+分支也使同一组命令可用于以后重新部署：
 
 ```bash
+cd /home/unitree
+if [ -d Teleopit ]; then
+  mv Teleopit "Teleopit-backup-$stamp"
+fi
+tar -xzf Teleopit-latest.tar.gz -C /home/unitree
 test -d /home/unitree/Teleopit/teleopit
-cp -a /home/unitree/Teleopit "/home/unitree/Teleopit-backup-$stamp"
 
 cd /home/unitree/teleopit-rh56e2-repro
 cp -a overlay/teleopit/. /home/unitree/Teleopit/teleopit/
@@ -119,22 +120,13 @@ source /home/unitree/miniforge3/bin/activate teleopit
 python -m pip install --no-build-isolation -e . --no-deps
 ```
 
-只有 G1 没有可用的 `/home/unitree/Teleopit`、并且已经从开发机传来了
-`Teleopit-latest.tar.gz` 时，才先恢复完整 Teleopit 包，然后执行上面的 overlay
-复制和 SDK 安装：
-
-```bash
-cd /home/unitree
-if [ -d Teleopit ]; then
-  mv Teleopit "Teleopit-backup-$stamp"
-fi
-tar -xzf Teleopit-latest.tar.gz -C /home/unitree
-test -d /home/unitree/Teleopit/teleopit
-```
+以后只更新 RH56E2 集成时，`/home/unitree/Teleopit` 已经存在：只传新的集成仓库
+压缩包，先备份当前 Teleopit，再重复 overlay 复制和 SDK 安装命令。不要把旧的
+`Teleopit-latest.tar.gz` 覆盖到已经更新过且能正常运行的目录上。
 
 以后每次打开 G1 终端，仍先执行
 `source /home/unitree/miniforge3/bin/activate teleopit`。上述过程不会在 G1 上
-运行 `git clone`，也不会下载或替换另一套 Teleopit。
+运行 `git clone`，也不会在线下载这两个仓库。
 
 ## 6. 配置并安装 PICO 应用
 
@@ -233,10 +225,10 @@ python scripts/run/run_sim_rh56e2.py \
 | 找不到策略或模型 | 确认传入的 `/home/unitree/Teleopit` 包含 `ckpt` 与 assets；缺失时从开发机重新制作并传输 `Teleopit-latest.tar.gz`，不要让 G1 在线重装 |
 | 左右手或关节方向不对 | 停留在仿真，记录具体手和自由度；不要继续第 9 节以后的真机流程 |
 
-## 9. 确认已有真机组件
+## 9. 确认传入的真机组件
 
-离线合入不重新下载 G1 bridge。确认 G1 原有的 `teleopit` 环境和 Teleopit 目录
-已经具备真机组件，并检查新合入的 SDK：
+离线合入不重新下载 G1 bridge。确认 G1 已有的 Conda 环境与第 5 节传入的
+Teleopit 目录共同提供了真机组件，并检查新合入的 SDK：
 
 ```bash
 source /home/unitree/miniforge3/bin/activate teleopit
@@ -246,10 +238,37 @@ python scripts/dev/check_rh56e2.py \
   --teleopit-dir /home/unitree/Teleopit --profile real
 ```
 
-缺少 `g1_bridge_sdk` 表示 G1 原 Teleopit 真机环境本身不完整；应恢复之前可运行的
-G1 环境或传入开发机准备好的兼容包，而不是在机器人上重新克隆 Teleopit。
+缺少 `g1_bridge_sdk` 表示 G1 预装的 Conda 环境或传入的 Teleopit 包不完整；应
+修复环境或在开发机重新制作兼容包，而不是在机器人上克隆 Teleopit。
 
 ## 10. 配置 RH56E2 电源与网络
+
+### 当时如何确定 E2 的地址和端口
+
+端口 `6000` 不是根据 G1 地址猜出来的，也不是随机试出的。我们先确认 G1 侧
+网卡和子网，再从邻居表核对已上电的手；RH56E2 的 Modbus TCP 协议配置给出
+TCP 端口 `6000`，随后用 TCP 连接测试和只读 Modbus FC03 请求确认端点确实是
+E2 控制器：
+
+```bash
+ip -4 address show eth1
+ip route
+ip neigh show dev eth1
+
+nc -vz -w 2 192.168.123.210 6000
+nc -vz -w 2 192.168.123.211 6000
+
+cd /home/unitree/teleopit-rh56e2-repro
+bash scripts/dev/check_unitree_g1_rh56e2.sh
+```
+
+当时确认 `eth1` 为 `192.168.123.164/24`，左右 E2 分别为
+`192.168.123.210` 和 `192.168.123.211`，两者的 TCP `6000` 都可连接。
+仅仅看到端口开放还不能证明设备就是 E2；最后一条命令会用只读 Modbus FC03
+读取六路遥测，必须返回合理数据且没有故障。不要通过随机写寄存器识别设备。
+如果系统没有 `nc`，可直接执行只读检查脚本。
+
+### 通用地址配置
 
 一次只给一只手上电并配置。很多设备可能具有相同出厂地址 `192.168.11.210`；双手同网段前必须把其中一只改成唯一地址，例如左手 `.210`、右手 `.211`。
 
@@ -475,10 +494,14 @@ pkill -TERM -f 'scripts/run/run_sim2real.py'
 ## 19. 命令速查
 
 ```bash
-# 开发机：制作集成仓库离线包并传到 G1
+# 开发机：制作并传输完整 Teleopit 和集成仓库包
+cd ~
+tar --exclude='Teleopit/.git' --exclude='*/__pycache__' --exclude='*.pyc' -czf Teleopit-latest.tar.gz Teleopit
+cd ~/teleopit-rh56e2-repro
 git archive --format=tar.gz --prefix=teleopit-rh56e2-repro/ --output=../teleopit-rh56e2-repro-latest.tar.gz HEAD
-scp ../teleopit-rh56e2-repro-latest.tar.gz unitree@192.168.50.62:/home/unitree/
-# G1：解压后按第 5 节备份并合入已有 /home/unitree/Teleopit
+scp ~/Teleopit-latest.tar.gz ~/teleopit-rh56e2-repro-latest.tar.gz unitree@192.168.50.62:/home/unitree/
+# G1 首次部署：先解压完整 Teleopit，再应用集成 overlay
+tar -xzf /home/unitree/Teleopit-latest.tar.gz -C /home/unitree
 tar -xzf /home/unitree/teleopit-rh56e2-repro-latest.tar.gz -C /home/unitree
 # 离线验证
 bash scripts/dev/validate.sh
