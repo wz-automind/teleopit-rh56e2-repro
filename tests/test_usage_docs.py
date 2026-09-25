@@ -64,6 +64,18 @@ class UsageGuideTests(unittest.TestCase):
                 with self.subTest(path=path.name, fragment=fragment):
                     self.assertIn(fragment, text)
 
+    def test_staged_hardware_checks_are_described_without_command_walkthroughs(self):
+        text = USAGE.read_text(encoding="utf-8")
+        staged = text.split("## 12.", 1)[1].split("## 16.", 1)[0]
+        for command in (
+            "python scripts/dev/check_rh56e2.py",
+            "python scripts/dev/bench_rh56e2.py",
+            "python scripts/run/standalone_standing.py",
+            "--dry-run",
+        ):
+            with self.subTest(command=command):
+                self.assertNotIn(command, staged)
+
     def test_guide_deploys_full_teleopit_before_integration_overlay(self):
         required = (
             "git archive --format=tar.gz",
@@ -222,7 +234,7 @@ class UsageGuideTests(unittest.TestCase):
 
     def test_robot_host_commands_match_the_unitree_deployment(self):
         required = (
-            "conda activate teleopit",
+            "source /home/unitree/miniforge3/bin/activate teleopit",
             "cd /home/unitree/Teleopit",
             "hands.rh56e2.write_enabled=true",
         )
@@ -268,24 +280,21 @@ class UsageGuideTests(unittest.TestCase):
         for fragment in ("机载运行", "外部主机运行", "同一时间只能有一个"):
             self.assertIn(fragment, chinese)
 
-    def test_operator_docs_create_the_g1_environment_when_missing(self):
+    def test_operator_docs_use_the_default_miniforge_installation(self):
         paths = (ROOT / "README.md", *DOCS)
         required = (
-            "Miniforge3-26.7.2-0-Linux-aarch64.sh",
-            "89b786c8d2c8b0fda7553914c1314ae4ddaa094503802f279377b19ac4463cb2",
+            "source /home/unitree/miniforge3/bin/activate teleopit",
             "conda create -n teleopit python=3.11",
-            "conda activate teleopit",
         )
         for path in paths:
             text = path.read_text(encoding="utf-8")
             with self.subTest(path=path.name):
                 self.assertNotIn("python -m venv", text)
                 self.assertNotIn("source .venv", text)
+                self.assertNotIn("Miniforge3-26.7.2-0-Linux-aarch64.sh", text)
+                self.assertNotIn("89b786c8d2c8b0fda7553914c1314ae4ddaa094503802f279377b19ac4463cb2", text)
                 for fragment in required:
                     self.assertIn(fragment, text)
-
-        chinese = USAGE.read_text(encoding="utf-8")
-        self.assertGreaterEqual(chinese.count("if command -v conda"), 2)
 
     @staticmethod
     def _resolve_local_link(source: Path, target: str) -> Optional[Path]:

@@ -156,8 +156,8 @@ python scripts/run/run_sim_rh56e2.py \
 
 仿真通过后，先在开发机补齐固定版本的 `unitree_sdk2` 源码，再制作 Teleopit 和
 集成仓库压缩包。Teleopit 包包含已经合入的 E2 overlay、somehand、模型、策略
-以及 G1 bridge 源码。
-Teleopit 源码压缩包不包含 Conda 环境。
+以及 G1 bridge 源码。Teleopit 源码压缩包不包含 Conda 环境；本文默认 G1 已安装
+`/home/unitree/miniforge3`。
 
 ```bash
 set -e
@@ -188,65 +188,36 @@ tar --exclude='*/.git' \
   -czf Teleopit-latest.tar.gz Teleopit
 
 curl -fL \
-  https://github.com/conda-forge/miniforge/releases/download/26.7.2-0/Miniforge3-26.7.2-0-Linux-aarch64.sh \
-  -o Miniforge3-26.7.2-0-Linux-aarch64.sh
-curl -fL \
   https://github.com/BotRunner64/pico-bridge/releases/download/v0.2.1/pico_bridge-0.2.1-py3-none-any.whl \
   -o pico_bridge-0.2.1-py3-none-any.whl
-echo '89b786c8d2c8b0fda7553914c1314ae4ddaa094503802f279377b19ac4463cb2  Miniforge3-26.7.2-0-Linux-aarch64.sh' | sha256sum --check
 echo '7cf0fee07c76541fd06e2ee6bdeec3d11fec578cd4ef6b45179dec4af31b369f  pico_bridge-0.2.1-py3-none-any.whl' | sha256sum --check
 ```
 
-Miniforge 安装包必须是 `Linux-aarch64`，因为 G1 是 ARM64。不要把开发机的 Conda
-目录直接打包复制到 G1。
+不要把开发机的 Conda 目录直接打包复制到 G1；G1 使用自己已有的 Miniforge 环境。
 
 ## 9. 通过 SSH 传输并配置 G1
 
-`scp` 使用的就是 SSH 传输通道。下面四项从开发机一次传到 G1；如果 G1 已有可用
-Conda，Miniforge 安装包只作为备用，不会重复安装。
+`scp` 使用的就是 SSH 传输通道。下面三项从开发机一次传到 G1：
 
 ```bash
 set -e
 scp ~/Teleopit-latest.tar.gz \
   ~/teleopit-rh56e2-repro-latest.tar.gz \
-  ~/Miniforge3-26.7.2-0-Linux-aarch64.sh \
   ~/pico_bridge-0.2.1-py3-none-any.whl \
   unitree@192.168.50.62:/home/unitree/
 
 ssh unitree@192.168.50.62
 ```
 
-以下命令在 SSH 登录后的 G1 终端执行。先寻找常见位置中的 Conda；确实没有时，
-才使用刚传入的 ARM64 Miniforge 安装包。随后创建 G1 自己的 `teleopit` 环境：
+以下命令在 SSH 登录后的 G1 终端执行。使用默认的 Miniforge；如果 `teleopit`
+环境尚不存在就创建，然后用 `source` 激活：
 
 ```bash
-set -e
-if command -v conda >/dev/null 2>&1; then
-  eval "$(conda shell.bash hook)"
-else
-  for conda_root in "$HOME/miniforge3" "$HOME/miniconda3" "$HOME/anaconda3"; do
-    if [ -x "$conda_root/bin/conda" ]; then
-      eval "$("$conda_root/bin/conda" shell.bash hook)"
-      break
-    fi
-  done
-fi
-
-if ! command -v conda >/dev/null 2>&1; then
-  if [ "$(uname -m)" != "aarch64" ]; then
-    echo "错误：G1 应为 aarch64，当前为 $(uname -m)" >&2
-    exit 1
-  fi
-  cd "$HOME"
-  echo '89b786c8d2c8b0fda7553914c1314ae4ddaa094503802f279377b19ac4463cb2  Miniforge3-26.7.2-0-Linux-aarch64.sh' | sha256sum --check
-  bash "$HOME/Miniforge3-26.7.2-0-Linux-aarch64.sh" -b -p "$HOME/miniforge3"
-  eval "$("$HOME/miniforge3/bin/conda" shell.bash hook)"
-fi
-
+source /home/unitree/miniforge3/bin/activate
 if ! conda env list | awk '{print $1}' | grep -qx teleopit; then
   conda create -n teleopit python=3.11 -y
 fi
-conda activate teleopit
+source /home/unitree/miniforge3/bin/activate teleopit
 python --version
 ```
 
@@ -290,7 +261,7 @@ bash scripts/setup/setup_g1_bridge.sh
 激活环境：
 
 ```bash
-conda activate teleopit
+source /home/unitree/miniforge3/bin/activate teleopit
 ```
 
 后续只更新 E2 集成时，可以只重新传输集成仓库包并重复 overlay 复制与 SDK 安装，
@@ -301,11 +272,9 @@ conda activate teleopit
 确认第 9 节创建的 G1 Conda 环境、传入的 Teleopit 目录和本仓库 SDK 都可用：
 
 ```bash
-conda activate teleopit
+source /home/unitree/miniforge3/bin/activate teleopit
 cd /home/unitree/teleopit-rh56e2-repro
 python -c 'import g1_bridge_sdk, teleopit; from teleopit_rh56e2.sdk import RH56E2Hand; print("runtime imports OK")'
-python scripts/dev/check_rh56e2.py \
-  --teleopit-dir /home/unitree/Teleopit --profile real
 ```
 
 缺少 `g1_bridge_sdk` 表示第 9 节的本地编译没有完成，或传入的 Teleopit 包不完整；
@@ -337,70 +306,26 @@ bash scripts/dev/check_unitree_g1_rh56e2.sh
 读取六路遥测，必须返回合理数据且没有故障。不要通过随机写寄存器识别设备。
 如果系统没有 `nc`，可直接执行只读检查脚本。
 
-## 12. 单手只读预检
+## 12. 仓库自带的真机检查
 
-先断开 G1，只连接一只空载手：
+仓库已经包含 `scripts/dev/check_rh56e2.py`（单手或双手只读检查）、
+`scripts/dev/bench_rh56e2.py`（低速工作台测试）以及
+`scripts/run/standalone_standing.py`（G1 dry-run 和站立测试）。正常部署无需逐条照抄
+这些底层命令，使用第 16 节的总预检入口即可。
 
-```bash
-cd ~/teleopit-rh56e2-repro
-python scripts/dev/check_rh56e2.py \
-  --teleopit-dir ~/Teleopit --profile sim --hardware \
-  --left-host 192.168.11.210
-```
+## 13. 灵巧手写入安全
 
-确认六路角度可读、故障字节全为 0、温度合理。该命令只读。若固件明确要求其它 Unit ID，再加例如 `--unit-id 1`；不要靠随机尝试写寄存器排障。
+底层工作台脚本默认只读；主动写入需要额外确认词 `MOVE_RH56E2`。使用任何写入功能前，
+都要固定灵巧手、保持空载和无夹点，并确保现场人员能立即断电或触发急停。
 
-## 13. 单手低速工作台测试
+## 14. 双手连接条件
 
-确保手固定牢固、无负载、手指行程内无物体。先用默认只读模式：
+左右手必须使用不同的 IP，且角度、故障和温度均可正常读取。任一侧连接或状态检查
+失败时都不要进入完整控制；总预检脚本会同时检查两只手。
 
-```bash
-python scripts/dev/bench_rh56e2.py \
-  --teleopit-dir ~/Teleopit --host 192.168.11.210 \
-  --dof index --delta 50
-```
+## 15. G1 站立条件
 
-确认读数无误后，现场人员准备断电/急停，再允许一次动作：
-
-```bash
-python scripts/dev/bench_rh56e2.py \
-  --teleopit-dir ~/Teleopit --host 192.168.11.210 \
-  --dof index --delta 50 --speed 50 \
-  --write --confirm MOVE_RH56E2
-```
-
-## 14. 双手只读预检
-
-双手地址确认唯一后再同时接入：
-
-```bash
-python scripts/dev/check_rh56e2.py \
-  --teleopit-dir ~/Teleopit --profile real --hardware \
-  --left-host 192.168.11.210 --right-host 192.168.11.211
-```
-
-任何一侧连接、故障或温度检查失败都应停止，不要进入完整控制。
-
-## 15. G1 dry-run 与站立测试
-
-确认当前部署的 G1 有线接口为 `eth1`（若主机实际名称不同则替换），机器人悬挂或处于厂家规定测试姿态：
-
-```bash
-cd ~/Teleopit
-python scripts/run/standalone_standing.py \
-  --policy ckpt/track_g1.onnx \
-  --network-interface eth1 \
-  --dry-run
-```
-
-dry-run 正常后，在厂家流程、急停和现场监护到位时去掉 `--dry-run`：
-
-```bash
-python scripts/run/standalone_standing.py \
-  --policy ckpt/track_g1.onnx \
-  --network-interface eth1
-```
-
+确认 G1 控制网卡、厂家模式和急停状态正确，并让机器人处于厂家规定的安全测试姿态。
 只有 G1 能稳定进入和退出站立状态，才继续全链路遥操作。
 
 ## 16. 完整 G1 + RH56E2 真机测试
@@ -418,7 +343,7 @@ python scripts/run/standalone_standing.py \
 `192.168.50.62`。先运行只读检查，再显式打开两道真机确认：
 
 ```bash
-conda activate teleopit
+source /home/unitree/miniforge3/bin/activate teleopit
 cd ~/teleopit-rh56e2-repro
 bash scripts/dev/check_unitree_g1_rh56e2.sh
 
@@ -436,7 +361,7 @@ Wi-Fi 时可设置 `PICO_ADVERTISE_IP`。
 Conda 环境并进入 Teleopit 目录。不带灵巧手的全身遥操仍使用原 Teleopit 命令：
 
 ```bash
-conda activate teleopit
+source /home/unitree/miniforge3/bin/activate teleopit
 cd /home/unitree/Teleopit
 
 # 全身遥操启动指令（不包含灵巧手）
@@ -450,7 +375,7 @@ python scripts/run/run_sim2real.py \
 需要控制左右 E2 时，仍使用同一个 Teleopit 入口，只更换 E2 配置并追加双手连接参数：
 
 ```bash
-conda activate teleopit
+source /home/unitree/miniforge3/bin/activate teleopit
 cd /home/unitree/Teleopit
 
 # 全身遥操启动指令（包含左右 E2）
@@ -531,12 +456,13 @@ pkill -TERM -f 'scripts/run/run_sim2real.py'
 
 ## 18. 运行后检查
 
-停止控制后再次执行第 14 节的双手只读预检，记录角度、故障和温度；检查电源、电缆和机械固定。代码当前采用 `open_on_failure=false`、`open_on_shutdown=false`，异常时不会主动张手；跟踪超时使用 `-1` 保持当前目标。是否安全仍取决于负载和现场风险评估。
+停止控制后使用仓库自带的只读检查记录角度、故障和温度，并检查电源、电缆和机械固定。代码当前采用 `open_on_failure=false`、`open_on_shutdown=false`，异常时不会主动张手；跟踪超时使用 `-1` 保持当前目标。是否安全仍取决于负载和现场风险评估。
 
 ## 19. 故障排查
 
 | 现象 | 检查 |
 |---|---|
+| `/home/unitree/miniforge3/bin/activate` 不存在 | 先在 G1 上安装或修复 Miniforge，再继续本文流程 |
 | 缺少模型、策略或配置 | 检查 `/home/unitree/Teleopit` 是否为完整离线包；必要时从开发机重新传输 `Teleopit-latest.tar.gz`，再重新合入 overlay |
 | `ModuleNotFoundError` | 确认 `CONDA_DEFAULT_ENV=teleopit`，且 `which python` 位于当前 Conda 环境；SDK 缺失时按第 9 节重新安装并构建 G1 bridge |
 | RH56E2 超时 | 检查电源、静态 IP、子网、6000 端口、防火墙和 Unit ID |
@@ -556,20 +482,18 @@ cd ~
 tar --exclude='*/.git' --exclude='*/__pycache__' --exclude='*.pyc' --exclude='*/.venv' --exclude='*/build' --exclude='*/dist' --exclude='Teleopit/data/datasets' --exclude='Teleopit/outputs' --exclude='Teleopit/recordings' -czf Teleopit-latest.tar.gz Teleopit
 cd ~/teleopit-rh56e2-repro
 git archive --format=tar.gz --prefix=teleopit-rh56e2-repro/ --output=../teleopit-rh56e2-repro-latest.tar.gz HEAD
-curl -fL https://github.com/conda-forge/miniforge/releases/download/26.7.2-0/Miniforge3-26.7.2-0-Linux-aarch64.sh -o ~/Miniforge3-26.7.2-0-Linux-aarch64.sh
 curl -fL https://github.com/BotRunner64/pico-bridge/releases/download/v0.2.1/pico_bridge-0.2.1-py3-none-any.whl -o ~/pico_bridge-0.2.1-py3-none-any.whl
-scp ~/Teleopit-latest.tar.gz ~/teleopit-rh56e2-repro-latest.tar.gz ~/Miniforge3-26.7.2-0-Linux-aarch64.sh ~/pico_bridge-0.2.1-py3-none-any.whl unitree@192.168.50.62:/home/unitree/
-# SSH 登录 G1；检测/安装 Conda、创建环境的完整命令见第 9 节
+scp ~/Teleopit-latest.tar.gz ~/teleopit-rh56e2-repro-latest.tar.gz ~/pico_bridge-0.2.1-py3-none-any.whl unitree@192.168.50.62:/home/unitree/
+# SSH 登录 G1；默认 Miniforge 已安装，创建环境的完整命令见第 9 节
 ssh unitree@192.168.50.62
-conda create -n teleopit python=3.11 -y  # 仅在环境不存在时
-conda activate teleopit
+source /home/unitree/miniforge3/bin/activate
+if ! conda env list | awk '{print $1}' | grep -qx teleopit; then conda create -n teleopit python=3.11 -y; fi
+source /home/unitree/miniforge3/bin/activate teleopit
 # G1 首次部署：先解压完整 Teleopit，再应用集成 overlay
 tar -xzf /home/unitree/Teleopit-latest.tar.gz -C /home/unitree
 tar -xzf /home/unitree/teleopit-rh56e2-repro-latest.tar.gz -C /home/unitree
 # 离线验证
 bash scripts/dev/validate.sh
-# 单手只读检查
-python scripts/dev/check_rh56e2.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
 # 完整真机入口（仅在分阶段验收全部通过后）
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES LEFT_HAND_IP=192.168.11.210 RIGHT_HAND_IP=192.168.11.211 NETWORK_INTERFACE=eth1 bash scripts/run/run_sim2real_rh56e2.sh
 # 当前 Unitree 机载部署：只读检查 / 受保护启动

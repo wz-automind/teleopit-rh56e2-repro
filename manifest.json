@@ -31,11 +31,6 @@
       "repository": "https://github.com/unitreerobotics/unitree_sdk2.git",
       "commit": "c753829882fba461ed07ba25aaabee0a25d83663"
     },
-    "miniforge": {
-      "release": "26.7.2-0",
-      "installer": "Miniforge3-26.7.2-0-Linux-aarch64.sh",
-      "sha256": "89b786c8d2c8b0fda7553914c1314ae4ddaa094503802f279377b19ac4463cb2"
-    },
     "xr_teleoperate_reference": {
       "repository": "https://github.com/unitreerobotics/xr_teleoperate.git",
       "commit": "817fb00c63cde15e5f24a0f8fa08e1e33ed89d3b",

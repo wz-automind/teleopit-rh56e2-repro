@@ -33,8 +33,8 @@ PICO 4 Ultra
 ```
 
 经过审查的上游版本记录在 [`manifest.json`](manifest.json)。先在开发机完成环境、
-集成和仿真，再把完整 Teleopit、本集成仓库、pico-bridge wheel 以及备用的
-ARM64 Miniforge 安装包通过 SSH/SCP 传到 G1。G1 不在线克隆这些仓库。
+集成和仿真，再把完整 Teleopit、本集成仓库和 pico-bridge wheel 通过 SSH/SCP
+传到 G1。G1 不在线克隆这些仓库，并默认已安装 `/home/unitree/miniforge3`。
 
 ## 功能
 
@@ -73,31 +73,28 @@ tar --exclude='*/.git' --exclude='*/__pycache__' \
   --exclude='Teleopit/outputs' --exclude='Teleopit/recordings' \
   -czf Teleopit-latest.tar.gz Teleopit
 curl -fL \
-  https://github.com/conda-forge/miniforge/releases/download/26.7.2-0/Miniforge3-26.7.2-0-Linux-aarch64.sh \
-  -o Miniforge3-26.7.2-0-Linux-aarch64.sh
-curl -fL \
   https://github.com/BotRunner64/pico-bridge/releases/download/v0.2.1/pico_bridge-0.2.1-py3-none-any.whl \
   -o pico_bridge-0.2.1-py3-none-any.whl
-echo '89b786c8d2c8b0fda7553914c1314ae4ddaa094503802f279377b19ac4463cb2  Miniforge3-26.7.2-0-Linux-aarch64.sh' | sha256sum --check
 
 scp ~/Teleopit-latest.tar.gz ~/teleopit-rh56e2-repro-latest.tar.gz \
-  ~/Miniforge3-26.7.2-0-Linux-aarch64.sh \
   ~/pico_bridge-0.2.1-py3-none-any.whl \
   unitree@192.168.50.62:/home/unitree/
 ```
 
 `scp` 通过 SSH 通道传输文件。随后用 `ssh unitree@192.168.50.62` 登录 G1。G1
-既可能没有 Teleopit，也可能没有 Conda：先按[使用手册第 9 节](docs/zh/usage.md#9-通过-ssh-传输并配置-g1)
-检测现有 Conda；检测不到时才安装传入的 ARM64 Miniforge，再创建环境：
+初始没有 Teleopit，但默认已有 `/home/unitree/miniforge3`。按[使用手册第 9 节](docs/zh/usage.md#9-通过-ssh-传输并配置-g1)
+创建环境（如果尚不存在）并用 `source` 激活：
 
 ```bash
-# 先执行手册第 9 节的 Conda 检测/安装代码块，然后：
-conda create -n teleopit python=3.11 -y  # 仅在环境不存在时
-conda activate teleopit
+source /home/unitree/miniforge3/bin/activate
+if ! conda env list | awk '{print $1}' | grep -qx teleopit; then
+  conda create -n teleopit python=3.11 -y
+fi
+source /home/unitree/miniforge3/bin/activate teleopit
 ```
 
 接着解压完整 Teleopit、应用 RH56E2 overlay，并在 G1 的 ARM64 环境中安装 SDK。
-不要复制开发机的 Conda 目录；完整检测、备份和安装命令见中文使用手册。
+不要复制开发机的 Conda 目录；完整备份和安装命令见中文使用手册。
 
 ## 真机入口
 

@@ -5,7 +5,7 @@ require_teleopit_conda() {
     cat >&2 <<'EOF'
 The Conda environment "teleopit" must be active.
 Run:
-  conda activate teleopit
+  source /home/unitree/miniforge3/bin/activate teleopit
 EOF
     return 2
   fi
