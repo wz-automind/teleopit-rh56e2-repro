@@ -11,15 +11,7 @@ Teleopit RH56E2 是建立在 Teleopit、somehand 和 pico-bridge 基础上的集
 | RH56E2 模型、通道、寄存器、配置与安全 | [RH56E2 参考](reference/rh56e2.md) |
 | 独立只读和受保护写入 API | [Python SDK 参考](reference/sdk.md) |
 | 固定版本与上游升级流程 | [上游维护](reference/upstreams.md) |
-| 静态检查与待完成的物理验收 | [真机控制检查](hardware-check.md) |
-| 发布历史 | [更新日志](../../CHANGELOG.md) |
 
-## 推荐阅读顺序
-
-1. 先读架构文档，明确每个环节由哪个项目负责。
-2. 按完整使用手册完成安装和仿真。
-3. 连接手部电源或网线前阅读 RH56E2 和 Python SDK 参考。
-4. 逐级完成真机测试，不要第一次就启动全身控制。
 
 ## 支持边界
 
