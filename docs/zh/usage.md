@@ -24,8 +24,7 @@ $HOME/Teleopit/ckpt/track_g1.onnx
 
 - Ubuntu 22.04/24.04 或兼容 Linux，x86_64，Python 3.10 或 3.11。
 - Miniforge、`git`、Python 编译工具和网络访问。
-- 仿真建议使用带 OpenGL/Vulkan 驱动的独立显卡。
-- 真机需要 Unitree G1、左右 RH56E2、PICO 4 Ultra、可用急停、隔离测试区和有线网卡。
+- 真机需要 Unitree G1、左右 RH56E2、PICO 4 Ultra、可用急停、隔离测试区。
 - RH56E2 使用稳定的 24 V 电源；手册给出的单手最大抓取电流为 4.5 A。
 
 Ubuntu 基础依赖示例：
