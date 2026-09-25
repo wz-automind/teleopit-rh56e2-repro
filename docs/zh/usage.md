@@ -287,20 +287,9 @@ cd /home/unitree/Teleopit
 bash scripts/setup/setup_g1_bridge.sh
 ```
 
-以后每次 SSH 登录 G1 后先让 Conda 命令进入当前 shell，再激活环境：
+激活环境：
 
 ```bash
-if command -v conda >/dev/null 2>&1; then
-  eval "$(conda shell.bash hook)"
-else
-  for conda_root in "$HOME/miniforge3" "$HOME/miniconda3" "$HOME/anaconda3"; do
-    if [ -x "$conda_root/bin/conda" ]; then
-      eval "$("$conda_root/bin/conda" shell.bash hook)"
-      break
-    fi
-  done
-fi
-command -v conda >/dev/null 2>&1 || { echo "找不到 Conda" >&2; exit 1; }
 conda activate teleopit
 ```
 
