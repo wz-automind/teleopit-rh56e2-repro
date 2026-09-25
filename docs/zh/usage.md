@@ -43,7 +43,7 @@ cd teleopit-rh56e2-repro
 ```
 
 默认流程会把 Teleopit 安装到 `~/Teleopit`，把 somehand 安装到
-`~/Teleopit/third_party/somehand`，因此不需要设置路径变量。高级用户如需其它位置，仍可在安装前设置 `TELEOPIT_DIR` 和 `SOMEHAND_DIR`。
+`~/Teleopit/third_party/somehand`。
 
 ## 5. 创建并使用 Miniforge 环境
 
