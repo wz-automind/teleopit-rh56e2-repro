@@ -44,7 +44,7 @@ class UsageGuideTests(unittest.TestCase):
     def test_guide_has_complete_numbered_structure(self):
         text = USAGE.read_text(encoding="utf-8")
         sequence = [int(value) for value in re.findall(r"^## (\d+)\.", text, re.MULTILINE)]
-        self.assertEqual(sequence, list(range(1, 20)))
+        self.assertEqual(sequence, list(range(1, 21)))
 
     def test_guide_includes_every_safety_entry_point(self):
         required = (
@@ -89,13 +89,25 @@ class UsageGuideTests(unittest.TestCase):
                 text.index("cp -a overlay/teleopit/."),
             )
 
-        for path in DOCS:
-            text = path.read_text(encoding="utf-8")
-            self.assertNotIn("bash scripts/setup/install.sh", text)
-
         chinese = USAGE.read_text(encoding="utf-8")
+        self.assertLess(
+            chinese.index("bash scripts/setup/install.sh"),
+            chinese.index("scp ~/Teleopit-latest.tar.gz"),
+        )
         self.assertIn("G1 初始没有 Teleopit", chinese)
         self.assertIn("Teleopit 源码压缩包不包含 Conda 环境", chinese)
+
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for text in (readme, chinese):
+            with self.subTest(document="README" if text is readme else "usage"):
+                self.assertIn("c753829882fba461ed07ba25aaabee0a25d83663", text)
+                self.assertLess(
+                    text.index("c753829882fba461ed07ba25aaabee0a25d83663"),
+                    text.index("-czf Teleopit-latest.tar.gz"),
+                )
+
+        g1_section = chinese.split("## 9. 通过 SSH 传输并配置 G1", 1)[1]
+        self.assertNotIn("git clone https://", g1_section)
 
     def test_guide_explains_how_e2_endpoints_were_identified(self):
         required = (
@@ -210,7 +222,7 @@ class UsageGuideTests(unittest.TestCase):
 
     def test_robot_host_commands_match_the_unitree_deployment(self):
         required = (
-            "source /home/unitree/miniforge3/bin/activate teleopit",
+            "conda activate teleopit",
             "cd /home/unitree/Teleopit",
             "hands.rh56e2.write_enabled=true",
         )
@@ -256,16 +268,24 @@ class UsageGuideTests(unittest.TestCase):
         for fragment in ("机载运行", "外部主机运行", "同一时间只能有一个"):
             self.assertIn(fragment, chinese)
 
-    def test_operator_docs_use_one_miniforge_environment(self):
+    def test_operator_docs_create_the_g1_environment_when_missing(self):
         paths = (ROOT / "README.md", *DOCS)
-        required = ("source /home/unitree/miniforge3/bin/activate teleopit",)
+        required = (
+            "Miniforge3-26.7.2-0-Linux-aarch64.sh",
+            "89b786c8d2c8b0fda7553914c1314ae4ddaa094503802f279377b19ac4463cb2",
+            "conda create -n teleopit python=3.11",
+            "conda activate teleopit",
+        )
         for path in paths:
             text = path.read_text(encoding="utf-8")
             with self.subTest(path=path.name):
-                self.assertNotIn(".venv", text)
-                self.assertNotIn("conda create -n teleopit", text)
+                self.assertNotIn("python -m venv", text)
+                self.assertNotIn("source .venv", text)
                 for fragment in required:
                     self.assertIn(fragment, text)
+
+        chinese = USAGE.read_text(encoding="utf-8")
+        self.assertGreaterEqual(chinese.count("if command -v conda"), 2)
 
     @staticmethod
     def _resolve_local_link(source: Path, target: str) -> Optional[Path]:

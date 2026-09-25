@@ -3,9 +3,9 @@
 require_teleopit_conda() {
   if [[ "${CONDA_DEFAULT_ENV:-}" != "teleopit" || -z "${CONDA_PREFIX:-}" ]]; then
     cat >&2 <<'EOF'
-The Miniforge environment "teleopit" must be active.
+The Conda environment "teleopit" must be active.
 Run:
-  source /home/unitree/miniforge3/bin/activate teleopit
+  conda activate teleopit
 EOF
     return 2
   fi

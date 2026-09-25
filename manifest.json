@@ -27,6 +27,15 @@
       "apk_sha256": "ab96ad856ca737999723d4e50f8e5d4b20c5570f7f74000d5799dc656cc2c0d5",
       "wheel_sha256": "7cf0fee07c76541fd06e2ee6bdeec3d11fec578cd4ef6b45179dec4af31b369f"
     },
+    "unitree_sdk2": {
+      "repository": "https://github.com/unitreerobotics/unitree_sdk2.git",
+      "commit": "c753829882fba461ed07ba25aaabee0a25d83663"
+    },
+    "miniforge": {
+      "release": "26.7.2-0",
+      "installer": "Miniforge3-26.7.2-0-Linux-aarch64.sh",
+      "sha256": "89b786c8d2c8b0fda7553914c1314ae4ddaa094503802f279377b19ac4463cb2"
+    },
     "xr_teleoperate_reference": {
       "repository": "https://github.com/unitreerobotics/xr_teleoperate.git",
       "commit": "817fb00c63cde15e5f24a0f8fa08e1e33ed89d3b",

@@ -129,11 +129,13 @@ class RepositoryContractTests(unittest.TestCase):
             "CONDA_DEFAULT_ENV",
             "CONDA_PREFIX",
             "teleopit",
-            "source /home/unitree/miniforge3/bin/activate teleopit",
+            "conda activate teleopit",
             "TELEOPIT_PYTHON",
         ):
             with self.subTest(helper=fragment):
                 self.assertIn(fragment, helper)
+
+        self.assertNotIn("/home/unitree/miniforge3", helper)
 
         scripts = (
             ROOT / "scripts" / "install.sh",

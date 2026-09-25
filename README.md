@@ -32,9 +32,9 @@ PICO 4 Ultra
                                                       └─ 受保护的 Modbus TCP 真机控制
 ```
 
-经过审查的上游版本记录在 [`manifest.json`](manifest.json)。开发机需要同时打包
-完整 Teleopit 目录和本集成仓库，再通过 SSH/SCP 传到 G1。G1 先解压得到
-`/home/unitree/Teleopit`，然后应用 RH56E2 overlay；G1 不在线克隆这两个仓库。
+经过审查的上游版本记录在 [`manifest.json`](manifest.json)。先在开发机完成环境、
+集成和仿真，再把完整 Teleopit、本集成仓库、pico-bridge wheel 以及备用的
+ARM64 Miniforge 安装包通过 SSH/SCP 传到 G1。G1 不在线克隆这些仓库。
 
 ## 功能
 
@@ -47,29 +47,57 @@ PICO 4 Ultra
 
 ## 快速部署
 
-在开发机制作完整 Teleopit 包和集成仓库包，然后传到 G1：
+完整顺序是“开发机安装与仿真 → 打包 → SCP 传输 → SSH 登录 G1 配置”。仿真
+步骤见[完整使用手册第 7 节](docs/zh/usage.md#7-在部署-g1-前运行仿真)。仿真通过后，
+在开发机执行：
 
 ```bash
-git clone https://github.com/wz-automind/teleopit-rh56e2-repro.git
-cd teleopit-rh56e2-repro
+set -e
+cd ~/teleopit-rh56e2-repro
+
+UNITREE_SDK_DIR="$HOME/Teleopit/third_party/g1_bridge_sdk/thirdparty/unitree_sdk2"
+if [ ! -d "$UNITREE_SDK_DIR/.git" ]; then
+  mkdir -p "$(dirname "$UNITREE_SDK_DIR")"
+  git clone https://github.com/unitreerobotics/unitree_sdk2.git "$UNITREE_SDK_DIR"
+fi
+git -C "$UNITREE_SDK_DIR" fetch origin c753829882fba461ed07ba25aaabee0a25d83663
+git -C "$UNITREE_SDK_DIR" checkout --detach c753829882fba461ed07ba25aaabee0a25d83663
+
 git archive --format=tar.gz --prefix=teleopit-rh56e2-repro/ \
   --output=../teleopit-rh56e2-repro-latest.tar.gz HEAD
 
 cd ~
-tar --exclude='Teleopit/.git' --exclude='*/__pycache__' \
-  --exclude='*.pyc' -czf Teleopit-latest.tar.gz Teleopit
+tar --exclude='*/.git' --exclude='*/__pycache__' \
+  --exclude='*.pyc' --exclude='*/.venv' --exclude='*/build' \
+  --exclude='*/dist' --exclude='Teleopit/data/datasets' \
+  --exclude='Teleopit/outputs' --exclude='Teleopit/recordings' \
+  -czf Teleopit-latest.tar.gz Teleopit
+curl -fL \
+  https://github.com/conda-forge/miniforge/releases/download/26.7.2-0/Miniforge3-26.7.2-0-Linux-aarch64.sh \
+  -o Miniforge3-26.7.2-0-Linux-aarch64.sh
+curl -fL \
+  https://github.com/BotRunner64/pico-bridge/releases/download/v0.2.1/pico_bridge-0.2.1-py3-none-any.whl \
+  -o pico_bridge-0.2.1-py3-none-any.whl
+echo '89b786c8d2c8b0fda7553914c1314ae4ddaa094503802f279377b19ac4463cb2  Miniforge3-26.7.2-0-Linux-aarch64.sh' | sha256sum --check
 
 scp ~/Teleopit-latest.tar.gz ~/teleopit-rh56e2-repro-latest.tar.gz \
+  ~/Miniforge3-26.7.2-0-Linux-aarch64.sh \
+  ~/pico_bridge-0.2.1-py3-none-any.whl \
   unitree@192.168.50.62:/home/unitree/
 ```
 
-首次部署时 G1 没有 Teleopit 源码目录。必须先解压完整 Teleopit，再复制 RH56E2
-overlay，并将本仓库 SDK 安装到 G1 已有的 `teleopit` Conda 环境。首次部署和后续
-更新的完整命令见[中文使用手册](docs/zh/usage.md)。每次打开 G1 终端先执行：
+`scp` 通过 SSH 通道传输文件。随后用 `ssh unitree@192.168.50.62` 登录 G1。G1
+既可能没有 Teleopit，也可能没有 Conda：先按[使用手册第 9 节](docs/zh/usage.md#9-通过-ssh-传输并配置-g1)
+检测现有 Conda；检测不到时才安装传入的 ARM64 Miniforge，再创建环境：
 
 ```bash
-source /home/unitree/miniforge3/bin/activate teleopit
+# 先执行手册第 9 节的 Conda 检测/安装代码块，然后：
+conda create -n teleopit python=3.11 -y  # 仅在环境不存在时
+conda activate teleopit
 ```
+
+接着解压完整 Teleopit、应用 RH56E2 overlay，并在 G1 的 ARM64 环境中安装 SDK。
+不要复制开发机的 Conda 目录；完整检测、备份和安装命令见中文使用手册。
 
 ## 真机入口
 
@@ -85,7 +113,7 @@ ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
 ```
 
 地址和网卡都可以通过环境变量覆盖。无灵巧手的全身遥操与带双 E2 的遥操是两种
-互斥入口，不能同时运行。复制真机命令前必须完成[使用手册第 15 节](docs/zh/usage.md#15-完整-g1--rh56e2-真机测试)之前的所有分阶段检查。
+互斥入口，不能同时运行。复制真机命令前必须完成[使用手册第 16 节](docs/zh/usage.md#16-完整-g1--rh56e2-真机测试)之前的所有分阶段检查。
 
 ## 文档
 
