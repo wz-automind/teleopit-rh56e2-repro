@@ -7,33 +7,6 @@ targets Teleopit v0.5.0, somehand 0.3.0, and pico-bridge v0.2.1. Teleopit and
 somehand are pinned by full commit SHA; released pico-bridge wheel/APK artifacts
 are pinned by version and SHA-256.
 
-## Freshness audit (2026-09-23)
-
-- Teleopit `v0.5.0` is the latest stable release, and the pinned commit is
-  identical to the current `master`.
-- somehand `v0.3.0` is the latest stable release. Its current `master` has nine
-  additional unreleased commits with interface removals, so this integration
-  does not follow `master` before compatibility validation.
-- pico-bridge `v0.2.1` is the latest stable release; both wheel and APK hashes
-  are pinned.
-- `xr_teleoperate` is a mapping/order reference only, and its pinned commit is
-  identical to the current `main`.
-
-“Latest” means the latest stable release on the audit date, not automatic
-tracking of upstream development branches.
-
-## Why overlays are used
-
-This repository is not a snapshot of three unrelated histories. The installer
-checks out the exact Teleopit and somehand sources, installs the released
-pico-bridge package, and copies integration files to their normal upstream
-paths. The result has Teleopit's runtime layout while this repository's review
-surface remains limited to RH56E2-specific additions.
-
-An overlay is therefore a path-compatible integration layer, not a runtime
-monkey patch: `overlay/teleopit/sim2real/hands/rh56e2.py` becomes
-`$TELEOPIT_DIR/teleopit/sim2real/hands/rh56e2.py` during installation.
-
 ## Update procedure
 
 1. Read the upstream changelogs and migration notes.
@@ -51,7 +24,5 @@ monkey patch: `overlay/teleopit/sim2real/hands/rh56e2.py` becomes
 - pico-bridge wheel/API version, frame fields, 26-joint ordering, timestamps, reconnect behavior, and APK/wheel hashes.
 - RH56E2 firmware Unit ID, register behavior, address configuration, response framing, joint directions, temperature semantics, and hold command.
 
-Do not update a version number alone and call the combination compatible. Static
-tests and physical acceptance are separate evidence.
 
 [Architecture](architecture.md) · [Third-party components](../../../THIRD_PARTY.md)
