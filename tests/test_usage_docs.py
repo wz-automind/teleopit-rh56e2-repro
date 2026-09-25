@@ -44,7 +44,7 @@ class UsageGuideTests(unittest.TestCase):
     def test_guide_has_complete_numbered_structure(self):
         text = USAGE.read_text(encoding="utf-8")
         sequence = [int(value) for value in re.findall(r"^## (\d+)\.", text, re.MULTILINE)]
-        self.assertEqual(sequence, list(range(1, 21)))
+        self.assertEqual(sequence, list(range(1, 18)))
 
     def test_guide_includes_every_safety_entry_point(self):
         required = (
@@ -66,7 +66,7 @@ class UsageGuideTests(unittest.TestCase):
 
     def test_staged_hardware_checks_are_described_without_command_walkthroughs(self):
         text = USAGE.read_text(encoding="utf-8")
-        staged = text.split("## 12.", 1)[1].split("## 16.", 1)[0]
+        staged = text.split("## 12.", 1)[1].split("## 13.", 1)[0]
         for command in (
             "python scripts/dev/check_rh56e2.py",
             "python scripts/dev/bench_rh56e2.py",
