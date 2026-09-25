@@ -1,9 +1,7 @@
 # Teleopit + RH56E2 使用手册（中文）
 
-本文按已经实际采用的离线部署方式操作。G1 初始没有 Teleopit 源码目录；开发机
-同时准备完整 Teleopit 压缩包和本 RH56E2 集成仓库压缩包，通过 SSH/SCP 传到
-G1，先解压 Teleopit，再把 RH56E2 overlay 和 SDK 合入
-`/home/unitree/Teleopit`。G1 不在线克隆这两个仓库。
+本文按已经实际采用的离线部署方式操作。开发机同时准备完整 Teleopit 压缩包和本 RH56E2 集成仓库压缩包，通过 SSH/SCP 传到
+G1，先解压 Teleopit，再把 RH56E2 overlay 和 SDK 合入`/home/unitree/Teleopit`。G1 不在线克隆这两个仓库。
 
 ## 1. 范围与安全边界
 
