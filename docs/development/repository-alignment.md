@@ -10,12 +10,14 @@ repository owns the integration between those projects and the Inspire RH56E2
 
 ## Upstream policy
 
-- Pin Teleopit, somehand, and pico-bridge to reviewed versions in
-  `manifest.json` and the installer.
+- Record the reviewed Teleopit, somehand, and pico-bridge versions in
+  `manifest.json`.
 - Keep upstream projects external rather than copying their complete source
   histories into this repository.
 - Store integration files under `overlay/` using the same destination paths
   they have inside Teleopit and somehand.
+- Package the integration repository on a development computer and merge it
+  offline into the backed-up Teleopit runtime already present on G1.
 - Explain every upstream dependency, ownership boundary, and update procedure.
 
 ## Repository and code style
@@ -50,7 +52,7 @@ repository owns the integration between those projects and the Inspire RH56E2
 
 The English document is the source and the Chinese document at the same
 relative path mirrors its meaning and section order. `usage.md` is the single
-canonical operating guide in each language; `hardware-check.md` keeps the
+canonical operating guide in each language; `reference/rh56e2.md` keeps the
 source-review and physical-acceptance boundary explicit. Documentation must
 cover architecture, upstream responsibilities, installation, virtual
 environments, PICO configuration, simulation, staged RH56E2 testing, G1

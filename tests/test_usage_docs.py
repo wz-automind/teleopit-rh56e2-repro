@@ -49,7 +49,6 @@ class UsageGuideTests(unittest.TestCase):
 
     def test_both_guides_include_every_safety_entry_point(self):
         required = (
-            "scripts/setup/install.sh",
             "scripts/dev/validate.sh",
             "scripts/dev/check_rh56e2.py",
             "scripts/dev/bench_rh56e2.py",
@@ -65,6 +64,36 @@ class UsageGuideTests(unittest.TestCase):
             for fragment in required:
                 with self.subTest(path=path.name, fragment=fragment):
                     self.assertIn(fragment, text)
+
+    def test_both_guides_deploy_offline_into_existing_teleopit(self):
+        required = (
+            "git archive --format=tar.gz",
+            "teleopit-rh56e2-repro-latest.tar.gz",
+            "Teleopit-latest.tar.gz",
+            "scp",
+            "unitree@192.168.50.62:/home/unitree/",
+            "tar -xzf",
+            "Teleopit-backup-",
+            "overlay/teleopit/.",
+            "overlay/scripts/.",
+            "overlay/assets/.",
+            "overlay/third_party/somehand/.",
+            "pip install --no-build-isolation -e . --no-deps",
+        )
+        for path in DOCS:
+            text = path.read_text(encoding="utf-8")
+            for fragment in required:
+                with self.subTest(path=path.name, fragment=fragment):
+                    self.assertIn(fragment, text)
+
+        for path in DOCS:
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("bash scripts/setup/install.sh", text)
+
+        chinese = DOCS[0].read_text(encoding="utf-8")
+        english = DOCS[1].read_text(encoding="utf-8")
+        self.assertIn("Teleopit 源码压缩包不包含 Conda 环境", chinese)
+        self.assertIn("Teleopit source archive does not contain the Conda environment", english)
 
     def test_both_guides_document_live_simulation_operation(self):
         required = (
@@ -104,8 +133,8 @@ class UsageGuideTests(unittest.TestCase):
         }
         self.assertEqual(english, chinese)
 
-    def test_language_trees_include_usage_and_hardware_review(self):
-        required = {"README.md", "usage.md", "hardware-check.md"}
+    def test_language_trees_include_usage(self):
+        required = {"README.md", "usage.md"}
         for root in LANGUAGE_ROOTS:
             actual = {
                 path.relative_to(root).as_posix()
@@ -113,25 +142,6 @@ class UsageGuideTests(unittest.TestCase):
             }
             with self.subTest(root=root.name):
                 self.assertTrue(required.issubset(actual))
-
-    def test_hardware_reviews_cover_the_same_acceptance_contract(self):
-        required = (
-            "Modbus TCP",
-            "FC03",
-            "FC16",
-            "1486",
-            "1546",
-            "70°C",
-            "192.168.11.210:6000",
-            "write_enabled=true",
-            "usage.md",
-            "reference/rh56e2.md",
-        )
-        for root in LANGUAGE_ROOTS:
-            text = (root / "hardware-check.md").read_text(encoding="utf-8")
-            for fragment in required:
-                with self.subTest(root=root.name, fragment=fragment):
-                    self.assertIn(fragment, text)
 
     def test_docs_root_has_no_language_specific_markdown(self):
         root_markdown = sorted(path.name for path in (ROOT / "docs").glob("*.md"))
@@ -274,14 +284,12 @@ class UsageGuideTests(unittest.TestCase):
 
     def test_operator_docs_use_one_miniforge_environment(self):
         paths = (ROOT / "README.md", *DOCS)
-        required = (
-            "source /home/unitree/miniforge3/bin/activate teleopit",
-            "conda create -n teleopit python=3.11",
-        )
+        required = ("source /home/unitree/miniforge3/bin/activate teleopit",)
         for path in paths:
             text = path.read_text(encoding="utf-8")
             with self.subTest(path=path.name):
                 self.assertNotIn(".venv", text)
+                self.assertNotIn("conda create -n teleopit", text)
                 for fragment in required:
                     self.assertIn(fragment, text)
 

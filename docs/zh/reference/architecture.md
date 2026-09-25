@@ -41,7 +41,9 @@ scripts/run/                          仿真与真机入口
 scripts/dev/                          验证与受保护工作台工具
 ```
 
-安装器检出 `manifest.json` 中的精确上游版本，再把 overlay 文件复制到完全一致的相对目标路径。标记文件记录已安装的基础版本，避免把无关的脏工作区误认为已验证环境。
+`manifest.json` 记录完成兼容性审查的上游版本。实际 G1 部署在开发机打包本仓库，
+通过 SCP 传输后，把 overlay 文件复制到已有 `/home/unitree/Teleopit` 中完全一致的
+相对目标路径；部署前必须备份原 Teleopit，不在 G1 上重新克隆另一套上游。
 
 ## 失败行为
 

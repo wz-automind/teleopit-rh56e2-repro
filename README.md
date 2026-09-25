@@ -9,7 +9,6 @@
 <p align="center">
   <a href="docs/en/README.md">English Docs</a> •
   <a href="docs/zh/README.md">中文文档</a> •
-  <a href="CHANGELOG.md">Changelog</a> •
   <a href="THIRD_PARTY.md">Upstreams</a>
 </p>
 
@@ -33,7 +32,7 @@ PICO 4 Ultra
                                                       └─ guarded Modbus TCP hardware
 ```
 
-The upstream versions are fixed in [`manifest.json`](manifest.json). Integration files under `overlay/` use the same destination paths as Teleopit and somehand; the installer checks out those exact upstream revisions and applies the integration. This avoids carrying modified copies of both complete upstream projects while keeping every added file reviewable.
+The reviewed upstream versions are recorded in [`manifest.json`](manifest.json). Integration files under `overlay/` use the same destination paths as Teleopit and somehand. For the deployed G1, this repository is packaged on a development computer, transferred over SSH/SCP, and merged into the existing `/home/unitree/Teleopit`; G1 does not clone a second Teleopit checkout.
 
 ## Highlights
 
@@ -46,31 +45,26 @@ The upstream versions are fixed in [`manifest.json`](manifest.json). Integration
 
 ## Quick start
 
-Ubuntu/Linux with Python 3.10 or 3.11 is recommended.
-
-Create the Miniforge environment once:
+Package the repository on a development computer and send it to G1:
 
 ```bash
-source /home/unitree/miniforge3/bin/activate
-conda create -n teleopit python=3.11 -y
+git clone https://github.com/wz-automind/teleopit-rh56e2-repro.git
+cd teleopit-rh56e2-repro
+git archive --format=tar.gz --prefix=teleopit-rh56e2-repro/ \
+  --output=../teleopit-rh56e2-repro-latest.tar.gz HEAD
+scp ../teleopit-rh56e2-repro-latest.tar.gz \
+  unitree@192.168.50.62:/home/unitree/
 ```
 
-Then install and run with that same environment:
+On G1, unpack the archive, back up the existing `/home/unitree/Teleopit`, copy
+the overlay into it, and install only this repository's SDK into the existing
+`teleopit` Conda environment. The exact commands—including how to transfer a
+complete prepared `Teleopit` directory—are in the English and Chinese usage
+guides below. Every G1 shell continues to use:
 
 ```bash
 source /home/unitree/miniforge3/bin/activate teleopit
-git clone https://github.com/wz-automind/teleopit-rh56e2-repro.git
-cd teleopit-rh56e2-repro
-bash scripts/setup/install.sh --profile sim --download-pico-apk
-cd ~/Teleopit
-python scripts/run/run_sim_rh56e2.py \
-  --config-name pico4_sim_rh56e2 \
-  controller.policy_path=ckpt/track_g1.onnx
 ```
-
-This follows Teleopit's normal `python scripts/run/...` command style. The E2
-variant changes only the entry point/configuration needed by the combined G1 +
-RH56E2 simulation. Installation and simulation do not write RH56E2 hardware.
 
 ## Real-hardware commands
 
@@ -105,7 +99,6 @@ variables; the usage guides also cover generic and external-host deployments.
 | Architecture and request flow | [Architecture](docs/en/reference/architecture.md) | [架构与数据流](docs/zh/reference/architecture.md) |
 | Inspire RH56E2 / 因时 E2 | [RH56E2 reference](docs/en/reference/rh56e2.md) | [RH56E2 参考](docs/zh/reference/rh56e2.md) |
 | Standalone Python SDK | [SDK reference](docs/en/reference/sdk.md) | [SDK 参考](docs/zh/reference/sdk.md) |
-| Hardware review and acceptance | [Hardware control review](docs/en/hardware-check.md) | [真机控制检查](docs/zh/hardware-check.md) |
 | Upstream versions and updates | [Upstream maintenance](docs/en/reference/upstreams.md) | [上游维护](docs/zh/reference/upstreams.md) |
 
 ## Hardware status

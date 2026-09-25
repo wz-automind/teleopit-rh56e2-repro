@@ -43,10 +43,11 @@ scripts/run/                          simulation and sim2real entry points
 scripts/dev/                          validation and guarded bench tools
 ```
 
-The installer checks out the exact upstream revisions from `manifest.json`,
-then copies each overlay file to the identical relative destination path. The
-marker files record the installed base revision and prevent silently treating
-an unrelated dirty checkout as a validated installation.
+`manifest.json` records the upstream revisions used for compatibility review.
+For the deployed G1, this repository is packaged on a development computer,
+transferred with SCP, and copied to identical relative paths inside the existing
+`/home/unitree/Teleopit`. Back up that runtime before merging; do not clone a
+second upstream checkout on G1.
 
 ## Failure behavior
 

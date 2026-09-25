@@ -1,6 +1,9 @@
 # Teleopit + RH56E2 使用手册（中文）
 
-本文从一台干净的 Ubuntu/Linux 主机开始，依次完成 Miniforge 环境、仿真、RH56E2 只读检查、单手低速测试、G1 站立测试和完整真机联调。命令对应仓库固定的 Teleopit v0.5.0、somehand 0.3.0 和 pico-bridge v0.2.1。
+本文按已经实际采用的离线部署方式操作：在开发机克隆并打包本仓库，通过
+SSH/SCP 传到 G1，解压后把 RH56E2 overlay 和 SDK 合入 G1 已有的
+`/home/unitree/Teleopit`，再完成只读检查、单手低速测试、G1 站立测试和
+完整真机联调。G1 不需要重新从 GitHub 克隆或新建另一套 Teleopit。
 
 ## 1. 范围与安全边界
 
@@ -11,61 +14,131 @@
 
 ## 2. 系统与目录
 
-安装完成后主要目录如下：
+G1 上使用以下两个目录：
 
 ```text
-teleopit-rh56e2-repro/       本仓库：安装、验证和安全入口
-$HOME/Teleopit/              固定版本的 Teleopit 与覆盖层
-$HOME/Teleopit/third_party/somehand/
-$HOME/Teleopit/ckpt/track_g1.onnx
+/home/unitree/teleopit-rh56e2-repro/  解压后的集成仓库：验证和安全入口
+/home/unitree/Teleopit/               G1 已有 Teleopit：最终运行目录
+/home/unitree/Teleopit/third_party/somehand/
+/home/unitree/Teleopit/ckpt/track_g1.onnx
 ```
 
 ## 3. 前置条件
 
-- Ubuntu 22.04/24.04 或兼容 Linux，x86_64，Python 3.10 或 3.11。
-- Miniforge、`git`、Python 编译工具和网络访问。
-- 真机需要 Unitree G1、左右 RH56E2、PICO 4 Ultra、可用急停、隔离测试区。
+- 开发机需要 `git`、`tar`、`scp` 和 GitHub 网络访问，用于克隆与制作离线包。
+- G1 已有 `/home/unitree/Teleopit` 和 `/home/unitree/miniforge3/envs/teleopit`。
+- G1 的 `teleopit` 环境使用 Python 3.10 或 3.11，并已包含原 Teleopit 真机依赖。
+- 仿真建议使用带 OpenGL/Vulkan 驱动的独立显卡。
+- 真机需要 Unitree G1、左右 RH56E2、PICO 4 Ultra、可用急停、隔离测试区和有线网卡。
 - RH56E2 使用稳定的 24 V 电源；手册给出的单手最大抓取电流为 4.5 A。
 
-Ubuntu 基础依赖示例：
+开发机缺少工具时可安装：
 
 ```bash
 sudo apt update
-sudo apt install -y git python3-dev build-essential
+sudo apt install -y git openssh-client tar
 ```
 
-## 4. 克隆仓库
+## 4. 在开发机克隆并打包
+
+以下命令在开发机执行，不是在 G1 上执行：
 
 ```bash
 cd ~
 git clone https://github.com/wz-automind/teleopit-rh56e2-repro.git
 cd teleopit-rh56e2-repro
+
+git archive --format=tar.gz \
+  --prefix=teleopit-rh56e2-repro/ \
+  --output=../teleopit-rh56e2-repro-latest.tar.gz \
+  HEAD
 ```
 
-默认流程会把 Teleopit 安装到 `~/Teleopit`，把 somehand 安装到
-`~/Teleopit/third_party/somehand`。
+这个包只包含 Git 仓库中已提交的集成代码，不包含 `.git`、临时 worktree 或
+本机缓存。
 
-## 5. 创建并使用 Miniforge 环境
-
-首次部署时创建 Python 3.11 环境；如果 `teleopit` 已存在，可跳过前两行：
+如果还需要把开发机上已经准备好的完整 Teleopit 源码与资源目录一起传过去，
+可在开发机的 `~` 下另做一个包：
 
 ```bash
-source /home/unitree/miniforge3/bin/activate
-conda create -n teleopit python=3.11 -y
-source /home/unitree/miniforge3/bin/activate teleopit
-
-cd ~/teleopit-rh56e2-repro
-bash scripts/setup/install.sh --profile sim --download-pico-apk
-python -V
+cd ~
+tar --exclude='Teleopit/.git' \
+  --exclude='*/__pycache__' \
+  --exclude='*.pyc' \
+  -czf Teleopit-latest.tar.gz Teleopit
 ```
 
-以后每次打开终端，先运行 `source /home/unitree/miniforge3/bin/activate teleopit`。
-安装器会验证环境名、解释器路径和 Python 版本，然后检出固定 commit、复制
-overlay、安装可编辑包并下载机器人、GMR、策略和 BVH 资源。
+Teleopit 源码压缩包不包含 Conda 环境；G1 仍使用自己已有的
+`/home/unitree/miniforge3/envs/teleopit`。不要把开发机的 Conda 环境直接复制到
+G1，因为 CPU 架构和本地编译依赖可能不同。
+
+## 5. 传到 G1、解压并合入已有 Teleopit
+
+先在开发机通过 G1 的 Wi-Fi/SSH 地址传输集成仓库包：
+
+```bash
+scp ~/teleopit-rh56e2-repro-latest.tar.gz \
+  unitree@192.168.50.62:/home/unitree/
+```
+
+如果制作了完整 Teleopit 包，再传第二个文件：
+
+```bash
+scp ~/Teleopit-latest.tar.gz \
+  unitree@192.168.50.62:/home/unitree/
+```
+
+然后 SSH 登录 G1，解压集成仓库。已有的旧集成仓库只改名备份，不直接删除：
+
+```bash
+ssh unitree@192.168.50.62
+
+cd /home/unitree
+stamp="$(date +%Y%m%d-%H%M%S)"
+if [ -d teleopit-rh56e2-repro ]; then
+  mv teleopit-rh56e2-repro "teleopit-rh56e2-repro-backup-$stamp"
+fi
+tar -xzf teleopit-rh56e2-repro-latest.tar.gz -C /home/unitree
+```
+
+正常情况应复用 G1 已有的 Teleopit。先确认目录并做可恢复备份，再合入 E2 文件：
+
+```bash
+test -d /home/unitree/Teleopit/teleopit
+cp -a /home/unitree/Teleopit "/home/unitree/Teleopit-backup-$stamp"
+
+cd /home/unitree/teleopit-rh56e2-repro
+cp -a overlay/teleopit/. /home/unitree/Teleopit/teleopit/
+cp -a overlay/scripts/. /home/unitree/Teleopit/scripts/
+cp -a overlay/assets/. /home/unitree/Teleopit/assets/
+mkdir -p /home/unitree/Teleopit/third_party/somehand
+cp -a overlay/third_party/somehand/. \
+  /home/unitree/Teleopit/third_party/somehand/
+
+source /home/unitree/miniforge3/bin/activate teleopit
+python -m pip install --no-build-isolation -e . --no-deps
+```
+
+只有 G1 没有可用的 `/home/unitree/Teleopit`、并且已经从开发机传来了
+`Teleopit-latest.tar.gz` 时，才先恢复完整 Teleopit 包，然后执行上面的 overlay
+复制和 SDK 安装：
+
+```bash
+cd /home/unitree
+if [ -d Teleopit ]; then
+  mv Teleopit "Teleopit-backup-$stamp"
+fi
+tar -xzf Teleopit-latest.tar.gz -C /home/unitree
+test -d /home/unitree/Teleopit/teleopit
+```
+
+以后每次打开 G1 终端，仍先执行
+`source /home/unitree/miniforge3/bin/activate teleopit`。上述过程不会在 G1 上
+运行 `git clone`，也不会下载或替换另一套 Teleopit。
 
 ## 6. 配置并安装 PICO 应用
 
-APK 下载到 `downloads/PicoBridge_v0.2.1_20260522_release.apk`，脚本会校验 SHA-256。通过开发者模式/ADB 安装 APK，启动后让 PICO 与控制主机处在同一局域网。防火墙需允许 pico-bridge 所用连接；主机 IP变化后要在 PICO 应用中同步更新。
+使用已经安装在 PICO 上的 pico-bridge 应用，让 PICO 与 G1 Wi-Fi 处在同一局域网，并把控制主机地址设置为 `192.168.50.62`。防火墙需允许 pico-bridge 所用连接；G1 Wi-Fi 地址变化后要在 PICO 应用中同步更新。
 
 先确认主机能看到 PICO，再进入机器人测试。跟踪丢失、网络频繁抖动或坐标方向异常时不要启用真机输出。
 
@@ -124,6 +197,7 @@ python scripts/run/run_sim_rh56e2.py \
   controller.policy_path=ckpt/track_g1.onnx
 ```
 
+集成仓库仍保留兼容入口 `scripts/run/run_sim_rh56e2.sh`。
 
 终端应显示 `State: STANDING`、`Input: Pico4 live`、`Viewers: all` 和 `Hands: RH56E2`。收到 PICO 首帧后，按以下顺序操作：
 
@@ -149,23 +223,31 @@ python scripts/run/run_sim_rh56e2.py \
 
 配置中的 `policy_hz: 50` 和 `pd_hz: 200` 分别是策略与仿真 PD 更新频率。
 
+### 8.5 仿真常见问题
 
-## 9. 安装真机组件
+| 现象 | 处理 |
+|---|---|
+| 一直显示等待 PICO | 检查 PICO 中填写的主机 IP、同一局域网、防火墙和 `63901` 端口；在 60 秒超时前重新启动 PICO 应用 |
+| `Y` 后仍不进入 `MOCAP` | PICO 尚未提供有效身体/手部帧；先恢复跟踪，再观察终端是否收到首帧 |
+| 窗口打不开 | 检查显卡驱动、OpenGL、`DISPLAY`/Wayland；SSH 环境需要正确的图形转发或本地桌面 |
+| 找不到策略或模型 | 确认传入的 `/home/unitree/Teleopit` 包含 `ckpt` 与 assets；缺失时从开发机重新制作并传输 `Teleopit-latest.tar.gz`，不要让 G1 在线重装 |
+| 左右手或关节方向不对 | 停留在仿真，记录具体手和自由度；不要继续第 9 节以后的真机流程 |
 
-回到本仓库，在同一个 Teleopit 目录上增加 G1 bridge：
+## 9. 确认已有真机组件
+
+离线合入不重新下载 G1 bridge。确认 G1 原有的 `teleopit` 环境和 Teleopit 目录
+已经具备真机组件，并检查新合入的 SDK：
 
 ```bash
-cd ~/teleopit-rh56e2-repro
-bash scripts/setup/install.sh --profile real
 source /home/unitree/miniforge3/bin/activate teleopit
-```
-
-验证：
-
-```bash
+cd /home/unitree/teleopit-rh56e2-repro
+python -c 'import g1_bridge_sdk, teleopit; from teleopit_rh56e2.sdk import RH56E2Hand; print("runtime imports OK")'
 python scripts/dev/check_rh56e2.py \
-  --teleopit-dir ~/Teleopit --profile real
+  --teleopit-dir /home/unitree/Teleopit --profile real
 ```
+
+缺少 `g1_bridge_sdk` 表示 G1 原 Teleopit 真机环境本身不完整；应恢复之前可运行的
+G1 环境或传入开发机准备好的兼容包，而不是在机器人上重新克隆 Teleopit。
 
 ## 10. 配置 RH56E2 电源与网络
 
@@ -380,8 +462,8 @@ pkill -TERM -f 'scripts/run/run_sim2real.py'
 
 | 现象 | 检查 |
 |---|---|
-| 缺少模型、策略或配置 | 重跑 `scripts/setup/install.sh`（不要加 `--skip-assets`），再运行 `scripts/dev/validate.sh` |
-| `ModuleNotFoundError` | 确认 `CONDA_DEFAULT_ENV=teleopit` 且 `which python` 指向 Miniforge 环境，必要时重跑相应 profile 安装 |
+| 缺少模型、策略或配置 | 检查 `/home/unitree/Teleopit` 是否为完整离线包；必要时从开发机重新传输 `Teleopit-latest.tar.gz`，再重新合入 overlay |
+| `ModuleNotFoundError` | 确认 `CONDA_DEFAULT_ENV=teleopit` 且 `which python` 指向 `/home/unitree/miniforge3/envs/teleopit`；SDK 缺失时在集成仓库重新执行 `python -m pip install --no-build-isolation -e . --no-deps` |
 | RH56E2 超时 | 检查电源、静态 IP、子网、6000 端口、防火墙和 Unit ID |
 | 按 `.11.210/.11.211` 超时 | `.11.x` 只是通用示例；当前已验证部署使用 `.123.210/.123.211`，先运行 `check_unitree_g1_rh56e2.sh` |
 | 双手只能连一只 | 分别上电核对地址；消除重复 IP 后再同时接入 |
@@ -393,12 +475,13 @@ pkill -TERM -f 'scripts/run/run_sim2real.py'
 ## 19. 命令速查
 
 ```bash
-# 安装仿真环境
-bash scripts/setup/install.sh --profile sim --download-pico-apk
+# 开发机：制作集成仓库离线包并传到 G1
+git archive --format=tar.gz --prefix=teleopit-rh56e2-repro/ --output=../teleopit-rh56e2-repro-latest.tar.gz HEAD
+scp ../teleopit-rh56e2-repro-latest.tar.gz unitree@192.168.50.62:/home/unitree/
+# G1：解压后按第 5 节备份并合入已有 /home/unitree/Teleopit
+tar -xzf /home/unitree/teleopit-rh56e2-repro-latest.tar.gz -C /home/unitree
 # 离线验证
 bash scripts/dev/validate.sh
-# 安装真机组件
-bash scripts/setup/install.sh --profile real
 # 单手只读检查
 python scripts/dev/check_rh56e2.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
 # 完整真机入口（仅在分阶段验收全部通过后）
@@ -408,4 +491,4 @@ bash scripts/dev/check_unitree_g1_rh56e2.sh
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES bash scripts/run/run_unitree_g1_rh56e2.sh
 ```
 
-协议、寄存器、模型映射和仍待完成的物理验收见 [真机控制检查](hardware-check.md)。
+协议、寄存器、模型映射和安全限制见 [RH56E2 参考](reference/rh56e2.md)。

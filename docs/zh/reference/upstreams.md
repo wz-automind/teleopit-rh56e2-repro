@@ -4,15 +4,26 @@
 
 `manifest.json` 是机器可读的事实来源。当前集成面向 Teleopit v0.5.0、somehand 0.3.0 和 pico-bridge v0.2.1。Teleopit 与 somehand 使用完整 commit SHA 固定；pico-bridge wheel/APK 使用版本和 SHA-256 固定。
 
+## 为什么使用 overlay
+
+本仓库不是三个无关历史的代码快照。`manifest.json` 记录经过审查的 Teleopit、
+somehand 和 pico-bridge 版本；实际 G1 已有可运行的 Teleopit 环境。本仓库在开发机
+打包并传到 G1，再把集成文件复制到已有 Teleopit 的正常上游路径。最终运行目录保持
+Teleopit 的结构，而本仓库需要审查的范围只包含 RH56E2 相关增加。
+
+因此 overlay 是“路径兼容的集成层”，不是运行时 monkey patch：离线合入时
+`overlay/teleopit/sim2real/hands/rh56e2.py` 会复制为
+`/home/unitree/Teleopit/teleopit/sim2real/hands/rh56e2.py`。
+
 ## 升级流程
 
 1. 阅读上游更新日志和迁移说明。
-2. 每次只升级一个上游，并同步修改 `manifest.json`、`pyproject.toml` 和 `scripts/install.sh`。
-3. 把 overlay 应用到干净检出；不要在来源不明的脏上游工作区测试。
+2. 每次只升级一个上游，并同步修改 `manifest.json` 和 `pyproject.toml`。
+3. 在开发机兼容副本上验证 overlay；真机部署前备份 G1 已有 Teleopit。
 4. 运行编译、单测、Ruff、shell 语法和离线模型验证。
 5. 运行 PICO 仿真，核对左右、轴向、模式、暂停/恢复和跟踪超时。
 6. 连续真机控制前重新完成只读遥测和单自由度分阶段测试。
-7. 在 `CHANGELOG.md` 和 PR 中记录已测试版本与未测试的物理条件。
+7. 在 PR 和仓库历史中记录已测试版本与未测试的物理条件。
 
 ## 必须复查的兼容点
 

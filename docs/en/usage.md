@@ -1,6 +1,9 @@
 # Teleopit + RH56E2 Usage Guide (English)
 
-This guide starts with a clean Ubuntu/Linux host and covers the Miniforge environment, simulation, read-only RH56E2 checks, a single-hand low-speed test, G1 standing validation, and the full hardware path. The commands target the pinned Teleopit v0.5.0, somehand 0.3.0, and pico-bridge v0.2.1 revisions in this repository.
+This guide follows the offline deployment that was used on the robot: clone and
+package this repository on a development computer, transfer it to G1 with
+SSH/SCP, unpack it, and merge the RH56E2 overlay and SDK into G1's existing
+`/home/unitree/Teleopit`. G1 does not clone or create a second Teleopit tree.
 
 ## 1. Scope and safety boundary
 
@@ -12,67 +15,137 @@ This guide starts with a clean Ubuntu/Linux host and covers the Miniforge enviro
 
 ## 2. System and directories
 
-The main paths after installation are:
+The G1 uses these two directories:
 
 ```text
-teleopit-rh56e2-repro/       this repository: install, validation, safety entry points
-$HOME/Teleopit/              pinned Teleopit plus the overlay
-$HOME/Teleopit/third_party/somehand/
-$HOME/Teleopit/ckpt/track_g1.onnx
+/home/unitree/teleopit-rh56e2-repro/  unpacked integration repository: validation and safety entry points
+/home/unitree/Teleopit/               existing G1 Teleopit: final runtime directory
+/home/unitree/Teleopit/third_party/somehand/
+/home/unitree/Teleopit/ckpt/track_g1.onnx
 ```
 
 ## 3. Prerequisites
 
-- Ubuntu 22.04/24.04 or compatible Linux, x86_64, Python 3.10 or 3.11.
-- Miniforge, `git`, Python build tools, and internet access.
-- Hardware work requires a Unitree G1, left and right RH56E2 hands, PICO 4 Ultra, a working emergency stop, an isolated test area.
+- The development computer needs `git`, `tar`, `scp`, and GitHub access to make the offline bundle.
+- G1 already has `/home/unitree/Teleopit` and `/home/unitree/miniforge3/envs/teleopit`.
+- G1's `teleopit` environment uses Python 3.10 or 3.11 and contains the original Teleopit hardware dependencies.
+- A discrete GPU with working OpenGL/Vulkan drivers is recommended for simulation.
+- Hardware work requires a Unitree G1, left and right RH56E2 hands, PICO 4 Ultra, a working emergency stop, an isolated test area, and wired networking.
 - Power each RH56E2 from a stable 24 V supply. The manual specifies 4.5 A maximum grasping current per hand. Do not draw power from an unverified G1 connector.
 
-Example Ubuntu prerequisites:
+Install missing tools on the development computer if necessary:
 
 ```bash
 sudo apt update
-sudo apt install -y git python3-dev build-essential
+sudo apt install -y git openssh-client tar
 ```
 
-## 4. Clone the repository
+## 4. Clone and package on the development computer
+
+Run these commands on the development computer, not on G1:
 
 ```bash
 cd ~
 git clone https://github.com/wz-automind/teleopit-rh56e2-repro.git
 cd teleopit-rh56e2-repro
+
+git archive --format=tar.gz \
+  --prefix=teleopit-rh56e2-repro/ \
+  --output=../teleopit-rh56e2-repro-latest.tar.gz \
+  HEAD
 ```
 
-The default workflow installs Teleopit at `~/Teleopit` and somehand at
-`~/Teleopit/third_party/somehand`, so path variables are not required. Advanced
-users may still set `TELEOPIT_DIR` and `SOMEHAND_DIR` before installation. Do
-not point them at another Teleopit checkout with unknown uncommitted changes;
-the installer refuses to overwrite such a checkout.
+This archive contains only committed integration files. It excludes `.git`,
+temporary worktrees, and local caches.
 
-## 5. Create and use the Miniforge environment
-
-Create the Python 3.11 environment on the first deployment. If `teleopit`
-already exists, skip the first two lines:
+To transfer a complete, already-prepared Teleopit source and asset directory as
+well, create a second archive from the development computer's home directory:
 
 ```bash
-source /home/unitree/miniforge3/bin/activate
-conda create -n teleopit python=3.11 -y
-source /home/unitree/miniforge3/bin/activate teleopit
-
-cd ~/teleopit-rh56e2-repro
-bash scripts/setup/install.sh --profile sim --download-pico-apk
-python -V
+cd ~
+tar --exclude='Teleopit/.git' \
+  --exclude='*/__pycache__' \
+  --exclude='*.pyc' \
+  -czf Teleopit-latest.tar.gz Teleopit
 ```
 
-For later shells, first run `source /home/unitree/miniforge3/bin/activate teleopit`.
-The installer verifies the environment name, interpreter path, and Python
-version before it checks out pinned commits, copies the overlay, installs
-editable packages, and downloads robot, GMR, policy, and BVH assets. Do not
-commit downloaded assets, device credentials, or tokens.
+The Teleopit source archive does not contain the Conda environment. G1 continues
+to use `/home/unitree/miniforge3/envs/teleopit`. Do not copy a development
+computer's Conda directory onto G1 because CPU architecture and locally compiled
+dependencies may differ.
+
+## 5. Transfer to G1, unpack, and merge into existing Teleopit
+
+From the development computer, transfer the integration bundle through G1's
+Wi-Fi/SSH address:
+
+```bash
+scp ~/teleopit-rh56e2-repro-latest.tar.gz \
+  unitree@192.168.50.62:/home/unitree/
+```
+
+If the complete Teleopit archive was created, transfer that file too:
+
+```bash
+scp ~/Teleopit-latest.tar.gz \
+  unitree@192.168.50.62:/home/unitree/
+```
+
+SSH to G1 and unpack the integration repository. Preserve an older integration
+directory by renaming it instead of deleting it:
+
+```bash
+ssh unitree@192.168.50.62
+
+cd /home/unitree
+stamp="$(date +%Y%m%d-%H%M%S)"
+if [ -d teleopit-rh56e2-repro ]; then
+  mv teleopit-rh56e2-repro "teleopit-rh56e2-repro-backup-$stamp"
+fi
+tar -xzf teleopit-rh56e2-repro-latest.tar.gz -C /home/unitree
+```
+
+Normally, reuse G1's existing Teleopit. Verify it, make a recoverable backup,
+then merge the E2 files:
+
+```bash
+test -d /home/unitree/Teleopit/teleopit
+cp -a /home/unitree/Teleopit "/home/unitree/Teleopit-backup-$stamp"
+
+cd /home/unitree/teleopit-rh56e2-repro
+cp -a overlay/teleopit/. /home/unitree/Teleopit/teleopit/
+cp -a overlay/scripts/. /home/unitree/Teleopit/scripts/
+cp -a overlay/assets/. /home/unitree/Teleopit/assets/
+mkdir -p /home/unitree/Teleopit/third_party/somehand
+cp -a overlay/third_party/somehand/. \
+  /home/unitree/Teleopit/third_party/somehand/
+
+source /home/unitree/miniforge3/bin/activate teleopit
+python -m pip install --no-build-isolation -e . --no-deps
+```
+
+Only when G1 has no usable `/home/unitree/Teleopit` and a prepared
+`Teleopit-latest.tar.gz` has already been transferred should the complete
+Teleopit archive be restored first. Then run the overlay-copy and SDK-install
+commands above:
+
+```bash
+cd /home/unitree
+if [ -d Teleopit ]; then
+  mv Teleopit "Teleopit-backup-$stamp"
+fi
+tar -xzf Teleopit-latest.tar.gz -C /home/unitree
+test -d /home/unitree/Teleopit/teleopit
+```
+
+For later G1 shells, continue to run
+`source /home/unitree/miniforge3/bin/activate teleopit` first. This procedure
+does not run `git clone` on G1 and does not download or replace another
+Teleopit checkout.
 
 ## 6. Configure and install the PICO app
 
-The APK is downloaded to `downloads/PicoBridge_v0.2.1_20260522_release.apk`, and its SHA-256 is verified. Install it through developer mode/ADB, launch it, and put the PICO and control host on the same LAN. Allow the pico-bridge connection through the firewall and update the host address in the PICO app whenever the host IP changes.
+Use the pico-bridge app already installed on PICO. Put PICO and G1 Wi-Fi on the same LAN and set the control-host address to `192.168.50.62`. Allow the pico-bridge connection through the firewall and update the PICO app whenever G1's Wi-Fi address changes.
 
 Confirm that the host sees the PICO before testing a robot. Do not enable hardware output if tracking drops, the network is unstable, or coordinate directions are wrong.
 
@@ -168,25 +241,26 @@ The configured `policy_hz: 50` and `pd_hz: 200` are policy and simulation-PD upd
 | Continues waiting for PICO | Check the host IP entered in PICO, LAN membership, firewall, and port `63901`; restart the PICO app before the 60-second timeout |
 | `Y` does not enter `MOCAP` | PICO has not supplied a valid body/hand frame; restore tracking and confirm that the terminal receives the first frame |
 | Viewer does not open | Check the GPU driver, OpenGL, and `DISPLAY`/Wayland; SSH requires working graphics forwarding or a local desktop |
-| Policy or model is missing | Repeat the Section 5 install without `--skip-assets`, then run `scripts/dev/validate.sh` |
+| Policy or model is missing | Confirm that the transferred `/home/unitree/Teleopit` contains `ckpt` and assets; if not, rebuild and transfer `Teleopit-latest.tar.gz` from the development computer instead of reinstalling online on G1 |
 | Left/right hand or joint direction is wrong | Stay in simulation, record the exact hand and DOF, and do not continue to the hardware steps after Section 8 |
 
-## 9. Install hardware components
+## 9. Confirm the existing hardware components
 
-Return to this repository and add the G1 bridge to the same Teleopit directory:
+The offline merge does not redownload the G1 bridge. Confirm that G1's original
+`teleopit` environment and Teleopit directory already contain the hardware
+runtime, and check the newly merged SDK:
 
 ```bash
-cd ~/teleopit-rh56e2-repro
-bash scripts/setup/install.sh --profile real
 source /home/unitree/miniforge3/bin/activate teleopit
-```
-
-Do not run hardware scripts from a different Python environment. Validate it:
-
-```bash
+cd /home/unitree/teleopit-rh56e2-repro
+python -c 'import g1_bridge_sdk, teleopit; from teleopit_rh56e2.sdk import RH56E2Hand; print("runtime imports OK")'
 python scripts/dev/check_rh56e2.py \
-  --teleopit-dir ~/Teleopit --profile real
+  --teleopit-dir /home/unitree/Teleopit --profile real
 ```
+
+If `g1_bridge_sdk` is missing, the original G1 Teleopit hardware environment is
+incomplete. Restore the previously working G1 environment or transfer a
+compatible prepared package; do not clone another Teleopit on the robot.
 
 ## 10. Configure RH56E2 power and networking
 
@@ -416,8 +490,8 @@ After stopping control, rerun the dual-hand read-only preflight from section 13 
 
 | Symptom | Check |
 |---|---|
-| Missing model, policy, or configuration | Rerun `scripts/setup/install.sh` without `--skip-assets`, then run `scripts/dev/validate.sh` |
-| `ModuleNotFoundError` | Confirm `CONDA_DEFAULT_ENV=teleopit` and that `which python` points into Miniforge; rerun the appropriate profile installation if needed |
+| Missing model, policy, or configuration | Check whether `/home/unitree/Teleopit` came from the complete offline bundle; if necessary, transfer `Teleopit-latest.tar.gz` again and reapply the overlay |
+| `ModuleNotFoundError` | Confirm `CONDA_DEFAULT_ENV=teleopit` and that `which python` points to `/home/unitree/miniforge3/envs/teleopit`; if only the SDK is missing, rerun `python -m pip install --no-build-isolation -e . --no-deps` from the integration repository |
 | RH56E2 timeout | Check power, static IP, subnet, port 6000, firewall, and Unit ID |
 | `.11.210/.11.211` time out | `.11.x` is a generic example; the verified deployment uses `.123.210/.123.211`. Run `check_unitree_g1_rh56e2.sh` first |
 | Only one of two hands connects | Power separately and verify addresses; remove duplicate IPs before reconnecting both |
@@ -429,12 +503,13 @@ After stopping control, rerun the dual-hand read-only preflight from section 13 
 ## 19. Command reference
 
 ```bash
-# Install simulation environment
-bash scripts/setup/install.sh --profile sim --download-pico-apk
+# Development computer: build the integration bundle and transfer it to G1
+git archive --format=tar.gz --prefix=teleopit-rh56e2-repro/ --output=../teleopit-rh56e2-repro-latest.tar.gz HEAD
+scp ../teleopit-rh56e2-repro-latest.tar.gz unitree@192.168.50.62:/home/unitree/
+# G1: unpack, then follow Section 5 to back up and merge into /home/unitree/Teleopit
+tar -xzf /home/unitree/teleopit-rh56e2-repro-latest.tar.gz -C /home/unitree
 # Offline validation
 bash scripts/dev/validate.sh
-# Install hardware components
-bash scripts/setup/install.sh --profile real
 # Read-only single-hand check
 python scripts/dev/check_rh56e2.py --teleopit-dir "$HOME/Teleopit" --profile sim --hardware --left-host 192.168.11.210
 # Full hardware entry point (only after all staged acceptance checks pass)
@@ -444,4 +519,4 @@ bash scripts/dev/check_unitree_g1_rh56e2.sh
 ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES bash scripts/run/run_unitree_g1_rh56e2.sh
 ```
 
-See [Hardware Control Review](hardware-check.md) for protocol details, register mappings, model mappings, and outstanding physical acceptance work.
+See the [RH56E2 reference](reference/rh56e2.md) for protocol details, register mappings, model mappings, and safety limits.
