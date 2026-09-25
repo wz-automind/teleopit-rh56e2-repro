@@ -16,4 +16,4 @@ Teleopit RH56E2 是建立在 Teleopit、somehand 和 pico-bridge 基础上的集
 
 仓库测试覆盖源码集成、协议帧、映射、配置门控和文档结构；它不能替代针对具体机器人、固件、电源、网络、负载和工作区的物理安全认证。
 
-[English documentation](../en/README.md) · [仓库首页](../../README.md)
+[仓库首页](../../README.md)

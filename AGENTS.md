@@ -22,7 +22,7 @@ follow Teleopit's `scripts/setup`, `scripts/run`, and `scripts/dev` groups.
 
 Hardware writes must default to disabled. New write paths require an explicit
 interlock, fault/temperature checks, deterministic tests, and corresponding
-English and Chinese documentation. Do not describe static source review as
+Chinese documentation. Do not describe static source review as
 physical validation.
 
 ## Tests and documentation
@@ -34,6 +34,6 @@ pytest -q
 ruff check src overlay/teleopit/sim2real/hands scripts tests
 ```
 
-Keep `README.md` short. Detailed documentation belongs in matching files under
-`docs/en` and `docs/zh`; write the English source first, then translate it with
-the same headings, commands, defaults, and safety limits.
+Keep `README.md` short. Detailed operator documentation belongs under
+`docs/zh`; keep commands, defaults, network values, and safety limits aligned
+with the implemented launchers and validation scripts.

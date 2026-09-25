@@ -1,89 +1,81 @@
 <h1 align="center">Teleopit RH56E2</h1>
 
 <p align="center">
-  PICO-driven Unitree G1 teleoperation with Inspire RH56E2 / 因时 E2 hands.
+  使用 PICO 驱动 Unitree G1 和因时 Inspire RH56E2 灵巧手的遥操作集成仓库。
   <br/>
-  Built on Teleopit, somehand, and pico-bridge with pinned, reproducible versions.
+  基于固定版本的 Teleopit、somehand 和 pico-bridge，支持可复现的离线部署。
 </p>
 
 <p align="center">
-  <a href="docs/en/README.md">English Docs</a> •
   <a href="docs/zh/README.md">中文文档</a> •
-  <a href="THIRD_PARTY.md">Upstreams</a>
+  <a href="docs/zh/usage.md">完整使用手册</a> •
+  <a href="THIRD_PARTY.md">第三方项目</a>
 </p>
 
 ---
 
-## Architecture
+## 项目结构
 
-| Foundation | Responsibility in this repository |
+| 基础项目 | 在本仓库中的职责 |
 | --- | --- |
-| [Teleopit](https://github.com/BotRunner64/Teleopit) | G1 whole-body retargeting, policy inference, simulation, sim2real state machine and safety runtime |
-| [somehand](https://github.com/BotRunner64/somehand) | PICO hand-landmark retargeting to the RH56E2 kinematic model |
-| [pico-bridge](https://github.com/BotRunner64/pico-bridge) | PICO headset, controller, hand and body tracking transport |
-| This repository | RH56E2 models/configs, Modbus TCP adapter, integration configs, reproducible installation and staged hardware checks |
+| [Teleopit](https://github.com/BotRunner64/Teleopit) | G1 全身重定向、策略推理、仿真、sim2real 状态机和安全运行时 |
+| [somehand](https://github.com/BotRunner64/somehand) | 将 PICO 手部关键点重定向到 RH56E2 运动学模型 |
+| [pico-bridge](https://github.com/BotRunner64/pico-bridge) | 传输 PICO 头显、控制器、手部和身体跟踪数据 |
+| 本仓库 | RH56E2 模型与配置、Modbus TCP 适配器、集成入口和分阶段真机检查 |
 
 ```text
 PICO 4 Ultra
-  └─ pico-bridge tracking
-       ├─ Teleopit body retargeting → policy → G1
-       └─ Teleopit 26→21 hand landmarks → somehand → RH56E2 adapter
-                                                      ├─ MuJoCo simulation
-                                                      └─ guarded Modbus TCP hardware
+  └─ pico-bridge 跟踪数据
+       ├─ Teleopit 身体重定向 → 策略 → G1
+       └─ Teleopit 26→21 手部关键点 → somehand → RH56E2 适配器
+                                                      ├─ MuJoCo 仿真
+                                                      └─ 受保护的 Modbus TCP 真机控制
 ```
 
-The reviewed upstream versions are recorded in [`manifest.json`](manifest.json). Integration files under `overlay/` use the same destination paths as Teleopit and somehand. For the deployed G1, the development computer packages and transfers both a complete Teleopit directory and this integration repository over SSH/SCP. G1 first unpacks `/home/unitree/Teleopit`, then applies the RH56E2 overlay; it does not clone either repository online.
+经过审查的上游版本记录在 [`manifest.json`](manifest.json)。开发机需要同时打包
+完整 Teleopit 目录和本集成仓库，再通过 SSH/SCP 传到 G1。G1 先解压得到
+`/home/unitree/Teleopit`，然后应用 RH56E2 overlay；G1 不在线克隆这两个仓库。
 
-## Highlights
+## 功能
 
-- G1 + dual RH56E2 MuJoCo simulation driven by PICO body and hand tracking.
-- Left, right, and dual Inspire RH56E2 configurations for somehand.
-- Standard-library Modbus TCP driver with FC03 telemetry and guarded FC16 commands.
-- Hardware writes disabled by default; duplicate endpoints, faults, over-temperature, and stale tracking are gated.
-- Teleopit-style `scripts/setup`, `scripts/run`, and `scripts/dev` entry points.
-- Mirrored English and Chinese documentation from installation through staged real-hardware testing.
+- PICO 身体与手部跟踪驱动的 G1 + 双 RH56E2 MuJoCo 仿真。
+- somehand 左手、右手和双手 RH56E2 配置。
+- 使用标准库实现的 Modbus TCP 驱动，支持 FC03 遥测和受保护的 FC16 指令。
+- 硬件写入默认关闭，并检查重复端点、故障、过温和跟踪超时。
+- 与 Teleopit 一致的 `scripts/setup`、`scripts/run` 和 `scripts/dev` 入口。
+- 从离线部署、仿真到分阶段真机测试的中文操作文档。
 
-## Quick start
+## 快速部署
 
-Package both the complete prepared Teleopit directory and this repository on a
-development computer, then send both archives to G1:
+在开发机制作完整 Teleopit 包和集成仓库包，然后传到 G1：
 
 ```bash
 git clone https://github.com/wz-automind/teleopit-rh56e2-repro.git
 cd teleopit-rh56e2-repro
 git archive --format=tar.gz --prefix=teleopit-rh56e2-repro/ \
   --output=../teleopit-rh56e2-repro-latest.tar.gz HEAD
+
 cd ~
 tar --exclude='Teleopit/.git' --exclude='*/__pycache__' \
   --exclude='*.pyc' -czf Teleopit-latest.tar.gz Teleopit
-scp ~/teleopit-rh56e2-repro-latest.tar.gz \
+
+scp ~/Teleopit-latest.tar.gz ~/teleopit-rh56e2-repro-latest.tar.gz \
   unitree@192.168.50.62:/home/unitree/
-scp ~/Teleopit-latest.tar.gz unitree@192.168.50.62:/home/unitree/
 ```
 
-On the first deployment, G1 has no Teleopit source tree. Unpack the complete
-archive first, copy the RH56E2 overlay into it, and install this repository's
-SDK into the existing `teleopit` Conda environment. The exact first-deployment
-and later-update commands are in the English and Chinese usage guides below.
-Every G1 shell continues to use:
+首次部署时 G1 没有 Teleopit 源码目录。必须先解压完整 Teleopit，再复制 RH56E2
+overlay，并将本仓库 SDK 安装到 G1 已有的 `teleopit` Conda 环境。首次部署和后续
+更新的完整命令见[中文使用手册](docs/zh/usage.md)。每次打开 G1 终端先执行：
 
 ```bash
 source /home/unitree/miniforge3/bin/activate teleopit
 ```
 
-## Real-hardware commands
+## 真机入口
 
-On the deployed Unitree host, use the existing `teleopit` Miniforge environment
-and `/home/unitree/Teleopit`. The standard `pico4_sim2real` command runs
-whole-body teleoperation without dexterous hands; the
-`pico4_sim2real_rh56e2` variant adds the two E2 endpoints and enables hand
-writes. They are alternatives and must not run at the same time. Copy the exact
-commands and complete the staged checks in the [English usage guide](docs/en/usage.md#15-full-g1--rh56e2-hardware-test)
-or [Chinese usage guide](docs/zh/usage.md#15-完整-g1--rh56e2-真机测试).
-
-For the verified onboard topology (`eth1`, host `192.168.123.164`, E2 hands
-`192.168.123.210/.211:6000`, PICO-facing IP `192.168.50.62`), use the
-read-only check and guarded launcher:
+当前已验证的机载拓扑为：G1 控制网卡 `eth1`、主机地址
+`192.168.123.164`、左右 E2 为 `192.168.123.210/.211:6000`、PICO 可访问地址
+为 `192.168.50.62`。先运行只读检查，再使用带双重确认的启动入口：
 
 ```bash
 cd ~/teleopit-rh56e2-repro
@@ -92,20 +84,22 @@ ENABLE_G1_REAL=YES ENABLE_RH56E2_WRITES=YES \
   bash scripts/run/run_unitree_g1_rh56e2.sh
 ```
 
-All addresses and the interface remain configurable through environment
-variables; the usage guides also cover generic and external-host deployments.
+地址和网卡都可以通过环境变量覆盖。无灵巧手的全身遥操与带双 E2 的遥操是两种
+互斥入口，不能同时运行。复制真机命令前必须完成[使用手册第 15 节](docs/zh/usage.md#15-完整-g1--rh56e2-真机测试)之前的所有分阶段检查。
 
-## Documentation
+## 文档
 
-| Topic | English | 中文 |
-| --- | --- | --- |
-| Documentation home | [docs/en/README.md](docs/en/README.md) | [docs/zh/README.md](docs/zh/README.md) |
-| Complete setup and operation | [Usage guide](docs/en/usage.md) | [完整使用手册](docs/zh/usage.md) |
-| Architecture and request flow | [Architecture](docs/en/reference/architecture.md) | [架构与数据流](docs/zh/reference/architecture.md) |
-| Inspire RH56E2 / 因时 E2 | [RH56E2 reference](docs/en/reference/rh56e2.md) | [RH56E2 参考](docs/zh/reference/rh56e2.md) |
-| Standalone Python SDK | [SDK reference](docs/en/reference/sdk.md) | [SDK 参考](docs/zh/reference/sdk.md) |
-| Upstream versions and updates | [Upstream maintenance](docs/en/reference/upstreams.md) | [上游维护](docs/zh/reference/upstreams.md) |
+| 内容 | 文档 |
+| --- | --- |
+| 文档首页 | [docs/zh/README.md](docs/zh/README.md) |
+| 完整安装、仿真和真机操作 | [完整使用手册](docs/zh/usage.md) |
+| 组件职责和数据流 | [架构与数据流](docs/zh/reference/architecture.md) |
+| RH56E2 模型、寄存器与安全限制 | [RH56E2 参考](docs/zh/reference/rh56e2.md) |
+| 独立 Python SDK | [SDK 参考](docs/zh/reference/sdk.md) |
+| 上游版本和升级流程 | [上游维护](docs/zh/reference/upstreams.md) |
 
-## Hardware status
+## 真机安全状态
 
-The protocol, mapping, configuration, and safety interlocks are covered by deterministic source tests. The repository has not physically accepted your exact G1, two RH56E2 hands, power supply, network, firmware, payload, or emergency-stop setup. Complete the staged procedure in the usage guide before enabling writes.
+确定性测试覆盖协议、映射、配置和软件安全门控，但不能替代对具体 G1、两只
+RH56E2、电源、网络、固件、负载和急停装置的物理验收。启用写入前必须按使用
+手册完成分阶段检查，并在低速、空载、可立即急停的条件下进行首次动作。
