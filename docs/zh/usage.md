@@ -20,8 +20,6 @@ $HOME/Teleopit/third_party/somehand/
 $HOME/Teleopit/ckpt/track_g1.onnx
 ```
 
-数据流为：PICO 身体/手部跟踪 → pico-bridge → Teleopit 状态机与策略 → G1；手部跟踪同时经 somehand 重定向 → RH56E2 Modbus TCP。配置中的 120/60/50/200 Hz 是各环节更新频率。
-
 ## 3. 前置条件
 
 - Ubuntu 22.04/24.04 或兼容 Linux，x86_64，Python 3.10 或 3.11。
